@@ -7,6 +7,7 @@ available at that event. Quote prices across venues must have compatible units.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any, Final
 
@@ -66,7 +67,7 @@ def _depth_weighted_mid(
 
 
 def depth_weighted_mid(tapes: MarketTapes, depth_units: int) -> NDArray[np.float64]:
-    """Per book row: mean of bid/ask VWAPs over the first ``depth_units`` USD (NaN if thinner
+    """Per book row: mean of bid/ask VWAPs over the first ``depth_units`` quantity units (NaN if thinner
     or the row is unusable, see :func:`~financeai.domains.market.stream.book_validity`)."""
     if depth_units <= 0:
         raise InvalidConfigError("depth_units must be positive")
@@ -270,7 +271,7 @@ def _ewma_deviation(basis: Any, recv: Any, tau: float, out: Any) -> None:
         out[i] = x - level if (x == x and level == level) else np.nan
         if x == x:
             if level == level:
-                w = np.exp(-(recv[i] - last_t) / tau)
+                w = math.exp(-(recv[i] - last_t) / tau)
                 level = w * level + (1.0 - w) * x
             else:
                 level = x
@@ -297,7 +298,7 @@ def ewma_deviation_signal(
 
 
 def sweep_signal(prep: PreparedMarket, *, source: int, min_units: int) -> NDArray[np.float64]:
-    """+1/-1 on every event of a receipt batch whose signed aggressor USD on ``source``
+    """+1/-1 on every event of a receipt batch whose signed aggressor quantity units on ``source``
     reaches ``min_units`` (Bid label = aggressive buy), else 0."""
     trades = prep.data.venues[source].trades
     out = np.zeros(len(prep.stream), np.float64)
@@ -355,7 +356,7 @@ def quote_confirm_signal(prep: PreparedMarket, *, venue: int, window_ns: int, ti
 
 def ofi_signal(prep: PreparedMarket, *, venue: int, levels: int, window_ns: int, normalize: str) -> NDArray[np.float64]:
     """Multi-level order-flow imbalance of ``venue`` summed over the snapshots received in
-    ``(t - window, t]`` (see :mod:`financeai.strategies.flow`). ``normalize``: ``none`` (USD),
+    ``(t - window, t]`` (see :mod:`financeai.strategies.flow`). ``normalize``: ``none`` (quantity units),
     ``depth`` (divided by the mean displayed depth over levels ``1..levels`` at the counted
     snapshots; 0 when nothing was counted) or ``sign`` (-1/0/+1). NaN before the venue's first
     observed book."""

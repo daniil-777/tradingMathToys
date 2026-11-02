@@ -2,7 +2,7 @@
 
 ``quote_oracle`` attains the top-quote relaxation in exact arithmetic. It grants
 unlimited displayed size and instantaneous reversals. ``depth_oracle`` solves a
-restricted, executable inventory graph: fixed receipt times, a USD inventory grid,
+restricted, executable inventory graph: fixed receipt times, an inventory grid in stored quantity units,
 full IOC fills, and spacing sufficient for acknowledgement and liquidity expiry.
 Its optimum is a LOWER bound on the full engine's hindsight optimum.
 

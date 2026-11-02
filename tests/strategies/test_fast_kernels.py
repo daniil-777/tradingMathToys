@@ -21,7 +21,7 @@ from financeai.domains.market import stream as stream_mod
 from financeai.domains.market.engine import PreparedMarket
 from financeai.domains.market.stream import EventStream, MarketData
 from financeai.domains.market.tape import BOOK_CLEAR, DEPTH, BookTape, TradeTape
-from financeai.strategies import leadlag, regime
+from financeai.strategies import leadlag, linear, regime
 
 from ..market.synthetic import US, random_market
 from .legacy_kernels import Legacy
@@ -140,10 +140,10 @@ def tied_market(seed: int, n_rows: int = 120) -> MarketData:
 # ---------------------------------------------------------------------------
 
 
-def same(new: NDArray[Any], old: NDArray[Any]) -> None:
-    assert new.dtype == old.dtype and new.shape == old.shape
-    assert np.array_equal(new, old, equal_nan=new.dtype.kind == "f")
-    assert new.tobytes() == old.tobytes()
+def same(new: NDArray[Any], old: NDArray[Any], *, context: str = "") -> None:
+    assert new.dtype == old.dtype and new.shape == old.shape, context
+    assert np.array_equal(new, old, equal_nan=new.dtype.kind == "f"), context
+    assert new.tobytes() == old.tobytes(), context
 
 
 def same_stream(new: EventStream, old: EventStream) -> None:
@@ -167,6 +167,8 @@ def every_kernel_output(prep: PreparedMarket, depth_units: int, window_ns: int) 
         out[f"lag{v}"] = leadlag.delayed(x, s.recv_ns, window_ns // 2)
         out[f"fresh{v}"] = regime.freshness_mask(prep, venues=(v,), max_age_ns=window_ns)
         out[f"vol{v}"] = regime.decayed_volume(prep, venue=v, tau_ns=window_ns)
+        out[f"flow{v}"] = linear.decayed_trade_flow(prep, venue=v, tau_ns=window_ns)
+    out["ewma"] = leadlag.ewma_deviation_signal(prep, leader=1, follower=0, tau_ns=window_ns, depth_units=depth_units)
     out["norm"] = regime.normalise(out["chg0"], prep, window_ns)
     out["composite"] = leadlag.build_signal(prep, COMPOSITE)
     return out
@@ -347,7 +349,7 @@ def _kernels(module: ModuleType) -> list[str]:
 def test_pure_python_fallback_matches_the_compiled_kernels(monkeypatch: pytest.MonkeyPatch) -> None:
     data = rich_market(18, n_rows=80, n_trades=50)
     compiled = every_kernel_output(PreparedMarket.build(data), 2_000, 20 * MS)
-    names = {leadlag: _kernels(leadlag), regime: _kernels(regime), stream_mod: _kernels(stream_mod)}
+    names = {module: _kernels(module) for module in (leadlag, linear, regime, stream_mod)}
     assert {"_depth_weighted_mid", "_observed_rows", "_event_values", "_window_change_bps", "_lagged_values"} <= set(
         names[leadlag]
     )
@@ -358,4 +360,4 @@ def test_pure_python_fallback_matches_the_compiled_kernels(monkeypatch: pytest.M
     python = every_kernel_output(PreparedMarket.build(data), 2_000, 20 * MS)
     assert python.keys() == compiled.keys()
     for key, want in compiled.items():
-        same(python[key], want)
+        same(python[key], want, context=key)

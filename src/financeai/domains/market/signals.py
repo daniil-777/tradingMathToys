@@ -67,7 +67,7 @@ type Book = tuple[
 PRICE_KINDS: Final = ("mid", "micro")
 SIGNAL_KINDS: Final = ("basis_dev", "lead_gap", "trade_flow", "ofi", "imbalance", "return", "linear")
 FLOW_DEPTH_LEVELS: Final = 5
-"""Levels per side whose resting USD normalises :func:`trade_flow`."""
+"""Levels per side whose resting stored quantity normalises :func:`trade_flow`."""
 MAX_DURATION_NS: Final = 2**53
 """Largest ``tau``/window: keeps ``float(dt)`` exact and clock arithmetic far from overflow."""
 MAX_SPEC_NESTING: Final = 8
@@ -136,7 +136,7 @@ def _decay(total: float, dt: int, tau: float) -> float:
 
 @_helper
 def _price_at(book: Book, r: int, tick: float, micro: bool) -> float:
-    """Mid or microprice in USD of book row ``r``; NaN for an unusable row."""
+    """Mid or microprice in quote currency of book row ``r``; NaN for an unusable row."""
     bpx, bsz, apx, asz, _nb, _na, valid = book
     if not valid[r]:
         return np.nan
@@ -157,7 +157,7 @@ def _side_units(sz: NDArray[np.int32], populated: int, r: int, levels: int) -> f
 
 @_helper
 def _depth_at(book: Book, r: int, levels: int) -> float:
-    """Bid + ask USD on the first ``levels`` populated levels of row ``r``; NaN when the row
+    """Bid + ask stored quantity units on the first ``levels`` populated levels of row ``r``; NaN when the row
     is unusable or empty, so that a ratio over it is NaN rather than infinite."""
     _bpx, bsz, _apx, asz, nb, na, valid = book
     if not valid[r]:
@@ -443,7 +443,7 @@ def _trade_flow_kernel(
     tau: float,
     out: NDArray[np.float64],
 ) -> None:
-    """Decayed signed aggressor USD of ``venue``'s prints. The sum is held at the time of its
+    """Decayed signed stored quantity from ``venue``'s prints. The sum is held at the time of its
     last print and decayed to each event on output, so rounding compounds per print, not per
     stream event."""
     total = 0.0
@@ -688,7 +688,7 @@ def _imbalance(ctx: _Context, v: int, levels: int) -> NDArray[np.float64]:
 class TopOfBook:
     """Observed level-1 state, each field ``(n_venues, n_events)`` float64 and read-only.
 
-    Prices in USD, sizes in stored quantity units; NaN wherever the venue's observed book is missing or
+    Prices in quote currency, sizes in stored quantity units; NaN wherever the venue's observed book is missing or
     unusable.
     """
 
@@ -819,7 +819,7 @@ def trade_flow(prep: PreparedMarket, venue: VenueRef, tau_ns: int, normalize: bo
     """Time-decayed signed aggressor flow ``sum side_label * sz * exp(-(t_e - t_j) / tau)``.
 
     stored quantity units, decayed to every event; exactly 0 before the venue's first print. With
-    ``normalize`` it is divided by the venue's observed top-5 depth (bid + ask USD) and is
+    ``normalize`` it is divided by the venue's observed top-5 depth (bid + ask stored quantity units) and is
     NaN while that book is unusable.
     """
     ctx = _Context(prep)
@@ -844,7 +844,7 @@ def ofi(prep: PreparedMarket, venue: VenueRef, tau_ns: int) -> NDArray[np.float6
 
 
 def imbalance(prep: PreparedMarket, venue: VenueRef, levels: int) -> NDArray[np.float64]:
-    """``(bid USD - ask USD) / (bid USD + ask USD)`` over the top ``levels`` observed levels."""
+    """``(bid size - ask size) / (bid size + ask size)`` over the top ``levels`` observed levels."""
     ctx = _Context(prep)
     return _frozen(_imbalance(ctx, ctx.venue(venue), _levels(levels)))
 

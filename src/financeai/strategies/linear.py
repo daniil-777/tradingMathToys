@@ -8,6 +8,7 @@ only used for fitting on earlier blocks, never as decision inputs.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable, Sequence
 from typing import Any, Final
 
@@ -44,9 +45,9 @@ def _decayed_flow(
     last_t = recv[0] if recv.shape[0] else 0
     for i in range(recv.shape[0]):
         t = recv[i]
-        level *= np.exp(-(t - last_t) / tau)
+        level *= math.exp(-(t - last_t) / tau)
         last_t = t
-        if venue_ev[i] == target and kind_ev[i] == 1:
+        if venue_ev[i] == target and kind_ev[i] == TRADE_EVENT:
             r = row_ev[i]
             level += float(side[r]) * float(size[r])
         out[i] = level
@@ -76,12 +77,11 @@ def decayed_trade_flow(prep: PreparedMarket, *, venue: int, tau_ns: int, measure
         if not instrument.inverse:
             size *= tr.px * instrument.tick_float
     _decayed_flow(s.recv_ns, s.venue, s.kind, s.row, tr.side_label, size, venue, float(tau_ns), out)
-    _ = TRADE_EVENT
     return out
 
 
 def depth_imbalance(prep: PreparedMarket, *, venue: int, levels: int = 5) -> NDArray[np.float64]:
-    """(sum bid USD - sum ask USD) / total over the top ``levels`` observed levels."""
+    """(bid quantity - ask quantity) / total over the top ``levels`` observed levels."""
     obs = observed_rows(prep.stream, venue)
     have = obs >= 0
     out = np.full(len(prep.stream), np.nan)

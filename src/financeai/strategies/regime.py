@@ -1,8 +1,7 @@
 """Causal activity (regime) measures used to gate signals.
 
-Round-1 iteration showed the lead-lag edge concentrated in active periods while quiet
-periods bled fees, so signals can be gated on the leader's recent traded volume. Every
-measure is one float64 per stream event and uses only events with index <= e.
+Signals can be gated on a venue's recent traded quantity or quote freshness. Outputs
+align with stream events and use only observations available at that event.
 """
 
 from __future__ import annotations
@@ -35,7 +34,7 @@ def _decayed_volume(
     last_t = recv[0] if recv.shape[0] else 0
     for i in range(recv.shape[0]):
         t = recv[i]
-        level *= np.exp(-(t - last_t) / tau)
+        level *= math.exp(-(t - last_t) / tau)
         last_t = t
         if venue_ev[i] == target and kind_ev[i] == TRADE_EVENT:
             level += float(size[row_ev[i]])
@@ -43,7 +42,7 @@ def _decayed_volume(
 
 
 def decayed_volume(prep: PreparedMarket, *, venue: int, tau_ns: int) -> NDArray[np.float64]:
-    """Exponentially decayed traded USD (both aggressor sides) of ``venue``."""
+    """Exponentially decayed traded quantity in stored units, counting both aggressor sides."""
     if tau_ns <= 0:
         raise InvalidConfigError("tau must be positive")
     s = prep.stream
@@ -114,7 +113,7 @@ def _ewma_rms_prev(values: NDArray[np.float64], recv: NDArray[np.int64], tau: fl
         if x == x:
             sq = x * x
             if level == level:
-                w = np.exp(-(recv[i] - last_t) / tau)
+                w = math.exp(-(recv[i] - last_t) / tau)
                 level = w * level + (1.0 - w) * sq
             else:
                 level = sq

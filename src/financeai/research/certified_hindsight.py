@@ -311,7 +311,7 @@ def certify_adaptive_depth(
     max_rate = 0
     if max_price:
         max_rate = max(abs(-((-rate.numerator) // (rate.denominator * min_price))) for rate in (buy, sell))
-    # No sign-crossing edge is admitted, so every order changes at most C USD.
+    # No sign-crossing edge is admitted, so each order changes at most the position cap in stored units.
     absolute_bound = max_orders * (cap // lot) * max_rate
     if absolute_bound > _SAFE:
         raise InvalidConfigError("integer path bound exceeds checked int64 headroom; reduce scale")
