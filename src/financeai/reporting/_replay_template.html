@@ -545,7 +545,9 @@
             " native · multiplier " +
             asset.instrument.contract_multiplier +
             " · settles in " +
-            asset.instrument.settlement_currency,
+            asset.instrument.settlement_currency +
+            " · shorting " +
+            (asset.instrument.shortable ? "allowed" : "disabled"),
         );
         const traces = [
           line(asset.series.bid, "Received best bid", p.price, 1),
@@ -634,8 +636,8 @@
               x0: 0,
               x1: 1,
               yref: "y2",
-              y0: -Number(asset.cap_units),
-              y1: -Number(asset.cap_units),
+              y0: asset.instrument.shortable ? -Number(asset.cap_units) : 0,
+              y1: asset.instrument.shortable ? -Number(asset.cap_units) : 0,
               line: { color: p.muted, dash: "dash", width: 1 },
             },
           ],

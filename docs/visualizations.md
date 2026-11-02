@@ -69,7 +69,7 @@ audited PNG/SVG figures; the interactive explorer uses the separate `interactive
 | Panel | Meaning | Important distinction |
 | --- | --- | --- |
 | Received quotes and executions | Received best bid/ask, BUY ▲, SELL ▼, and wholly unfilled × orders | Lines show observations; fills use the book at exchange arrival. A rejected or nonmarketable order has no executed quantity. |
-| Inventory | Actual position at fill arrival and acknowledged position at report receipt, with configured caps | The controller cannot act on an acknowledgement before it arrives. Quantities are stored integer units. The instrument metadata gives their native quantity step. |
+| Inventory | Actual position at fill arrival and acknowledged position at report receipt, with configured caps | The controller cannot act on an acknowledgement before it arrives. The lower constraint is zero when shorting is disabled. Quantities are stored integer units; instrument metadata gives their native quantity step. |
 | Marked PnL and cash | Settlement cash plus inventory marked at received mid; cash can be enabled in the legend | Cash transfers that finance inventory are not profit. These are trading cash-flow values, not a funded account's equity. |
 | Drawdown | Nonpositive marked PnL minus its preceding peak (including zero), in settlement currency | The card shows the largest loss as a positive magnitude. No percentage denominator or annualization is assumed. Missing marks remain gaps. |
 

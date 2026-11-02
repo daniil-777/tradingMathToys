@@ -1,7 +1,7 @@
 {
   "schema": "financeai.replay_preview",
   "schema_version": 1,
-  "html_sha256": "01a0296e9734c108ca391c63cf2a4f549ff3745563198fd12c33afc7e5fffcf1",
+  "html_sha256": "f210a8f51c1d0042699eb41d687dd537433b143727066b88e3f02eca981358b8",
   "source_sha256": "5f6d317941b78279598c4e5490ea7e6b89db564ce253207e2dc90480f95f6ba1",
   "browser": "156.0.8078.4",
   "viewport": {
@@ -11,12 +11,12 @@
   "previews": [
     {
       "file": "replay-dark.png",
-      "sha256": "c918719ab8ef8f572a91872d1d95362c37f4cc31fc396852414c7aae88bd8981",
+      "sha256": "0c6cf62657a784833b552a53d4f5db8642af08a22a060edbdb36d5a6702c92bb",
       "theme": "dark"
     },
     {
       "file": "replay-light.png",
-      "sha256": "c8e3777e1925a2eb3e882226c20bf64a8b4d4a56ec2da2b9e39e45c8854dee39",
+      "sha256": "b217caab2ce65c706dc20f5b6b6ee47fbd733ab3917b88c4664d1b9000e05828",
       "theme": "light"
     }
   ]

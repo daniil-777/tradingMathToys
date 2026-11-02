@@ -51,12 +51,15 @@ def test_offline_controls_download_hover_and_mobile_layout(page, mixed, tmp_path
     assert not errors and not requests
     assert page.locator("#account-status").inner_text().startswith("VALID")
     assert page.locator("#currency").input_value() == "CHF"
+    assert page.locator("#replay-chart").evaluate("el=>el.layout.shapes[1].y0") == 0
+    assert "shorting disabled" in page.locator("#instrument-info").inner_text()
     assert page.locator("#replay-chart").evaluate("el=>el.data[8].visible") == "legendonly"
     page.evaluate("Plotly.restyle('replay-chart', {visible:true}, [8])")
     inverse = prep.data.instruments[2].key
     page.select_option("#instrument", inverse)
     ready(page, inverse)
     assert page.locator("#currency").input_value() == "COIN"
+    assert page.locator("#replay-chart").evaluate("el=>el.layout.shapes[1].y0") < 0
     assert page.locator("#replay-chart").evaluate("el=>el.data[8].visible") is True
     page.select_option("#theme", "light")
     page.wait_for_function("document.documentElement.dataset.theme === 'light'")
