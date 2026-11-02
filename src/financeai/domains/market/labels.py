@@ -798,17 +798,20 @@ def _venue(
     limits: RiskLimits | None,
 ) -> _Venue:
     """Validate the per-venue execution context; the (expensive) market preparation comes last."""
-    if scenario.order_latency_ns + scenario.ack_ns > _MAX_LATENCY_NS:
-        raise InvalidConfigError(
-            "order_latency_ns + ack_latency_ns must not exceed 2**60 ns",
-            context={"order_latency_ns": scenario.order_latency_ns, "ack_ns": scenario.ack_ns},
-        )
     if scenario.consumption_ttl_ns > _MAX_TTL_NS:
         raise InvalidConfigError(
             "consumption_ttl_ns must not exceed 2**61 ns", context={"got": scenario.consumption_ttl_ns}
         )
     prep = data if isinstance(data, PreparedMarket) else PreparedMarket.build(data)
     v = _int("venue", venue, 0, len(prep.data) - 1)
+    scenario.validate_instruments(prep.data.instruments)
+    (limits or RiskLimits()).caps_for(prep.data.instruments)
+    scenario = scenario.for_instrument(prep.data.instruments[v])
+    if scenario.order_latency_ns + scenario.ack_ns > _MAX_LATENCY_NS:
+        raise InvalidConfigError(
+            "order_latency_ns + ack_latency_ns must not exceed 2**60 ns",
+            context={"order_latency_ns": scenario.order_latency_ns, "ack_ns": scenario.ack_ns},
+        )
     recv = prep.stream.recv_ns
     cutoff = (
         (int(recv[-1]) if recv.shape[0] else 0)
@@ -831,7 +834,7 @@ def _venue(
         ttl=scenario.consumption_ttl_ns,
         frac=float(scenario.depth_fraction),
         cutoff=cutoff,
-        cap=(limits or RiskLimits()).max_abs_position_units,
+        cap=(limits or RiskLimits()).cap_for(prep.data.instruments[v]),
         max_retries=_int("max_exit_retries", max_exit_retries, 0, 2**31),
     )
 

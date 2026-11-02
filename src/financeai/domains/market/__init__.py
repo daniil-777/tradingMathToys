@@ -40,6 +40,7 @@ from financeai.domains.market.reference import (
 from financeai.domains.market.scenario import (
     DEMO_BASE_FEES,
     DEMO_HIGH_FEES,
+    InstrumentLatency,
     RiskLimits,
     Scenario,
     SessionPlan,
@@ -86,6 +87,7 @@ __all__ = [
     "EventStream",
     "FillReport",
     "Fills",
+    "InstrumentLatency",
     "InstrumentSpec",
     "MarketData",
     "MarketTapes",

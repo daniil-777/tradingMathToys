@@ -304,3 +304,67 @@ def test_export_preserves_the_complete_execution_configuration(tmp_path: Path) -
     summary = json.loads((out / "summary.json").read_text())
     assert Scenario.from_mapping(summary["scenario_config"]) == scenario
     assert tuple(InstrumentSpec.from_mapping(value) for value in summary["instrument_specs"]) == prep.data.instruments
+
+
+def test_cli_accepts_market_specific_risk_and_latency_files(tmp_path: Path) -> None:
+    from decimal import Decimal
+
+    from financeai.domains.market import InstrumentLatency, RiskLimits, Scenario
+    from financeai.domains.market.instruments import INSTRUMENTS
+
+    caches = _caches(tmp_path)
+    config_path = tmp_path / "strategy.json"
+    config_path.write_text(json.dumps(CONFIG))
+    key = CONFIG["instruments"][0]
+    limits = RiskLimits(1000, per_instrument={key: 100})
+    scenario = Scenario(
+        "custom",
+        {i: Decimal("0.0001") for i in CONFIG["instruments"]},
+        1_000_000,
+        latency_by_instrument={key: InstrumentLatency(2_000_000, 3_000_000)},
+    )
+    risk_path, scenario_path = tmp_path / "risk.json", tmp_path / "scenario.json"
+    risk_path.write_text(json.dumps(limits.to_mapping()))
+    scenario_path.write_text(json.dumps(scenario.to_mapping()))
+    out = tmp_path / "custom-run"
+    assert (
+        main(
+            [
+                "run",
+                str(config_path),
+                "--cache",
+                caches[0],
+                "--cache",
+                caches[1],
+                "--risk-file",
+                str(risk_path),
+                "--scenario-file",
+                str(scenario_path),
+                "--out",
+                str(out),
+            ]
+        )
+        == 0
+    )
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["risk_limits"] == limits.to_mapping()
+    assert summary["scenario_config"] == scenario.to_mapping()
+    assert summary["max_abs_position_units"][0] <= limits.cap_for(INSTRUMENTS[key])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{"max_abs_position_units":10,"max_abs_position_units":1000}',
+        '{"per_instrument":{"exchange/ASSET":10,"exchange/ASSET":1000}}',
+        '{"depth_fraction":NaN}',
+        '{"depth_fraction":1e400}',
+    ],
+)
+def test_cli_configuration_decoder_rejects_ambiguous_or_non_finite_json(tmp_path: Path, text: str) -> None:
+    from financeai.cli import _json
+
+    path = tmp_path / "configuration.json"
+    path.write_text(text)
+    with pytest.raises(InvalidConfigError):
+        _json(str(path))

@@ -345,14 +345,7 @@ def _base_manifest(
         "run_id": run_id,
         "scenario": scenario_name,
         "timing_mode": scenario.timing.name if scenario is not None else None,
-        "scenario_parameters": None
-        if scenario is None
-        else {
-            "fees": {k: str(v) for k, v in sorted(scenario.fees.items())},
-            "order_latency_ns": scenario.order_latency_ns,
-            "ack_latency_ns": scenario.ack_ns,
-            "consumption_ttl_ns": scenario.consumption_ttl_ns,
-        },
+        "scenario_parameters": scenario.to_mapping() if scenario is not None else None,
         "evidence_scope": evidence_scope,
         "evidence_label": _EVIDENCE_LABEL[evidence_scope],
         "source_artifacts": sources,
@@ -594,8 +587,9 @@ def position_pnl_figure(
     nv = len(prep.data)
     if nv >= len(SERIES):
         raise InvalidConfigError("too many venues for one readable figure", context={"venues": nv})
-    lim = limits if limits is not None else RiskLimits()
-    cap = lim.max_abs_position_units
+    lim = limits or result.limits or RiskLimits()
+    caps = lim.caps_for(prep.data.instruments)
+    cap = max(caps)
 
     # -- metrics from the complete ordered records (before any reduction) -----------------
     stats = metrics.summary(result, prep, scenario, limits=lim)
@@ -697,7 +691,7 @@ def position_pnl_figure(
     annotations: list[dict[str, Any]] = []
     for v, key in enumerate(keys):
         t, q = positions[v]
-        hits = np.flatnonzero(np.abs(q) > cap)
+        hits = np.flatnonzero(np.abs(q) > caps[v])
         if hits.shape[0]:
             annotations.append(
                 {
@@ -706,7 +700,7 @@ def position_pnl_figure(
                     "points": int(hits.shape[0]),
                     "first_ns": int(t[hits[0]]),
                     "max_abs_position_units": int(np.abs(q[hits]).max()),
-                    "cap_units": cap,
+                    "cap_units": caps[v],
                 }
             )
     open_end = {key: q for key, q in zip(keys, stats["final_position_units"], strict=True) if q}
@@ -791,18 +785,19 @@ def position_pnl_figure(
         # (1) positions with cap lines, breach markers and the terminal status.
         max_q = max((r.get("full_max_abs", 0) for r in pos_records), default=0)
         cap_in_view = max_q >= _CAP_VIEW_FRACTION * cap
-        cap_label = f"+/-cap {cap:,} units"
-        if not cap_in_view:
-            cap_label += f" (off-scale: max |q| {max_q:,} units)"
-        for sign in (1, -1):
-            ax_pos.axhline(
-                sign * cap,
-                color=INK_2,
-                lw=0.8,
-                linestyle=(0, (5.0, 3.0)),
-                zorder=2,
-                label=cap_label if sign > 0 else None,
-            )
+        for limit in sorted(set(caps)):
+            cap_label = f"+/-cap {limit:,} units"
+            if max_q < _CAP_VIEW_FRACTION * limit:
+                cap_label += f" (off-scale: max |q| {max_q:,} units)"
+            for sign in (1, -1):
+                ax_pos.axhline(
+                    sign * limit,
+                    color=INK_2,
+                    lw=0.8,
+                    linestyle=(0, (5.0, 3.0)),
+                    zorder=2,
+                    label=cap_label if sign > 0 else None,
+                )
         ax_pos.axhline(0.0, color=AXIS, lw=0.6, zorder=1)
         for v, s in enumerate(pos_series):
             x, y = s.x(origin), s.y()
@@ -838,7 +833,7 @@ def position_pnl_figure(
         for note in (a for a in annotations if a["kind"] == "cap_breach"):
             v = keys.index(note["venue"])
             t, q = positions[v]
-            hits = np.flatnonzero(np.abs(q) > cap)
+            hits = np.flatnonzero(np.abs(q) > caps[v])
             bx = (t[hits] - origin) / NS_PER_S
             ax_pos.scatter(
                 bx,
@@ -854,7 +849,7 @@ def position_pnl_figure(
             breach_label = ""
             right = bx[0] > 0.5 * x_end
             callout = ax_pos.annotate(
-                f"cap breach ({note['venue']})\n|q| = {note['max_abs_position_units']:,} units > cap {cap:,} units",
+                f"cap breach ({note['venue']})\n|q| = {note['max_abs_position_units']:,} units > cap {caps[v]:,} units",
                 xy=(bx[0], q[hits[0]]),
                 xytext=(-12 if right else 12, -18 if q[hits[0]] > 0 else 18),
                 textcoords="offset points",
@@ -1084,6 +1079,10 @@ def position_pnl_figure(
                 },
                 "session": asdict(session) if session is not None else None,
                 "cap_units": cap,
+                "cap_units_by_instrument": dict(zip(keys, caps, strict=True)),
+                "cap_lines_in_view_by_instrument": {
+                    key: max_q >= _CAP_VIEW_FRACTION * limit for key, limit in zip(keys, caps, strict=True)
+                },
                 "cap_lines_in_view": cap_in_view,
                 "time_basis": {
                     "clock": "local receipt clock, UTC epoch nanoseconds (int64)",
@@ -1148,10 +1147,13 @@ def _account_table(
     ]
     dash = ["-"] * nv
     ratio = stats["fill_ratio"]
+    caps = stats.get("cap_units_by_instrument") or [cap] * nv
+    cap_description = f"cap {cap:,}" if len(set(caps)) == 1 else "per instrument"
     return [
         ["fills", *map(_fmt_int, stats["fills_by_venue"]), _fmt_int(stats["fills"])],
         ["traded (quantity units)", *map(_fmt_int, stats["traded_units_by_venue"]), _fmt_int(stats["traded_units"])],
-        ["max |q| (quantity units)", *map(_fmt_int, stats["max_abs_position_units"]), f"cap {cap:,}"],
+        ["max |q| (quantity units)", *map(_fmt_int, stats["max_abs_position_units"]), cap_description],
+        *([["position caps (quantity units)", *map(_fmt_int, caps), "per instrument"]] if len(set(caps)) > 1 else []),
         ["final q (quantity units)", *map(_fmt_int, stats["final_position_units"]), "NOT FLAT" if open_end else "flat"],
         ["example cash C (settlement currency)", *map(_fmt_pnl, stats["cash_by_venue"]), _fmt_pnl(stats["final_cash"])],
         ["fees (settlement currency)", *(f"{x:.8f}" for x in stats["fees_by_venue"]), f"{stats['fees']:.8f}"],
@@ -1495,6 +1497,8 @@ def decision_trace_figure(
             if scenario is not None
             else ""
         )
+        if scenario is not None and scenario.latency_by_instrument:
+            latency = " - per-instrument order/ack latency (see manifest)"
         ax.set_title(
             f"run {run} - scenario {scenario.name if scenario is not None else 'n/a'} - timing {timing}{latency}",
             loc="left",

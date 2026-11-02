@@ -263,8 +263,9 @@ def _depth_inputs(
     slip_ticks: int,
 ) -> tuple[NDArray[np.int64], NDArray[np.int64], NDArray[np.int64], NDArray[np.bool_]]:
     """Shared validation, receipt-cohort selection and actual arrival rows."""
+    scenario = scenario.for_instrument(tapes.instrument)
     _require_inverse(tapes, scenario)
-    cap, lot = limits.max_abs_position_units, tapes.instrument.lot_size
+    cap, lot = limits.cap_for(tapes.instrument), tapes.instrument.lot_size
     if isinstance(cap, bool) or not isinstance(cap, int) or not 0 < cap <= 2**62:
         raise InvalidConfigError("cap must be an integer in [1, 2**62]")
     if (
@@ -328,13 +329,14 @@ def depth_oracle(
     memory, making inventory alone a sufficient state. Fees and latency come from
     the supplied scenario. No modification of the replay engine is needed.
     """
+    scenario = scenario.for_instrument(tapes.instrument)
     minimum = max(1, scenario.order_latency_ns + scenario.ack_ns, scenario.consumption_ttl_ns)
     if isinstance(spacing_ns, bool) or not isinstance(spacing_ns, int) or spacing_ns < minimum:
         raise InvalidConfigError("spacing must cover the order round trip and consumption TTL")
     observed, times, arrivals, valid = _depth_inputs(
         tapes, scenario, session, limits, step_units, (spacing_ns,), slip_ticks
     )
-    b, cap, lot = tapes.book, limits.max_abs_position_units, tapes.instrument.lot_size
+    b, cap, lot = tapes.book, limits.cap_for(tapes.instrument), tapes.instrument.lot_size
     targets, score = _depth_path(
         times,
         observed,

@@ -453,3 +453,25 @@ def test_an_idle_account_and_the_two_panel_variant_render(tmp_path: Path) -> Non
     series = series_by_id(m)
     assert series["cash.total"]["events"] == 0 and series["cash.total"]["final_value"] == 0.0
     assert "VALID" in art.image_path.read_text()
+
+
+def test_figure_uses_each_instruments_limit_for_breach_annotations(tmp_path: Path) -> None:
+    pytest.importorskip("matplotlib")
+    result, prep = qa_result(), qa_market()
+    keys = [i.key for i in prep.data.instruments]
+    limits = RiskLimits(2_000_000, per_instrument={keys[0]: 500_000})
+    art = position_pnl_figure(
+        result,
+        prep,
+        title="Instrument-specific position limits",
+        scenario_name=QA_SCENARIO.name,
+        scenario=QA_SCENARIO,
+        session=QA_SESSION,
+        limits=limits,
+        out_path=tmp_path / "heterogeneous.png",
+        dpi=QA_DPI,
+    )
+    manifest = art.manifest
+    breaches = [a for a in manifest["annotations"] if a["kind"] == "cap_breach"]
+    assert [(a["venue"], a["cap_units"]) for a in breaches] == [(keys[0], 500_000)]
+    assert manifest["metrics"]["cap_units_by_instrument"] == [500_000, 2_000_000]

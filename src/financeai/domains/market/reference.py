@@ -336,12 +336,13 @@ def run_reference(
     exit_signal = signal if exit_signal is None else prepare_signal(exit_signal, len(ev), name="exit_signal")
     valid = tuple(book_validity(t) for t in data.venues)
     env = tuple(exchange_envelope(t) for t in data.venues)
-    lat, ack_lat = scenario.order_latency_ns, scenario.ack_ns
     fees = tuple(scenario.fee_for(i) for i in data.instruments)
     fee_f = [float(f) for f in fees]
     ticks = [float(i.tick_size) for i in data.instruments]
     lots = [i.lot_size for i in data.instruments]
-    cap = limits.max_abs_position_units
+    caps = limits.caps_for(data.instruments)
+    scenario.validate_instruments(data.instruments)
+    latencies = tuple(scenario.latency_for(i) for i in data.instruments)
 
     observed = [-1] * nv
     known = [0] * nv
@@ -379,6 +380,8 @@ def run_reference(
         for v in range(nv):
             if pending[v] is not None or not view.has_book(v):
                 continue
+            lat, ack_lat = latencies[v].order_latency_ns, latencies[v].ack_ns
+            cap = caps[v]
             tgt = max(-cap if data.venues[v].instrument.shortable else 0, min(cap, int(action.targets_units[v])))
             tgt = (abs(tgt) // lots[v]) * lots[v] * (1 if tgt >= 0 else -1)
             k = known[v]
@@ -521,7 +524,7 @@ def run_reference(
         fills,
         data.instruments,
         fees,
-        cap_units=cap,
+        cap_units=caps,
         fees_per_unit=tuple(scenario.fee_per_unit_for(i) for i in data.instruments),
     )
-    return ReplayResult(fills=fills, orders=orders, settlement=settlement, decisions=decisions)
+    return ReplayResult(fills=fills, orders=orders, settlement=settlement, decisions=decisions, limits=limits)

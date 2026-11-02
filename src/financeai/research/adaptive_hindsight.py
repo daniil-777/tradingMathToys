@@ -337,6 +337,7 @@ def adaptive_depth_oracle(
     Temporary frontier snapshots permit deterministic block recomputation;
     this exchanges roughly one extra forward pass for much lower peak memory.
     """
+    scenario = scenario.for_instrument(tapes.instrument)
     minimum = max(1, scenario.order_latency_ns + scenario.ack_ns, scenario.consumption_ttl_ns)
     cooldown = minimum if cooldown_ns is None else cooldown_ns
     if isinstance(cooldown, bool) or not isinstance(cooldown, int) or not minimum <= cooldown <= 2**62:
@@ -368,7 +369,7 @@ def adaptive_depth_oracle(
         b.n_bid,
         b.n_ask,
         step_units,
-        limits.max_abs_position_units // step_units,
+        limits.cap_for(tapes.instrument) // step_units,
         tapes.instrument.lot_size,
         scenario.depth_fraction,
         float(scenario.fee_for(tapes.instrument)),

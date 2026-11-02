@@ -52,7 +52,7 @@ python examples/market_replay.py --market linear --out runs/linear-demo
 The example generates synthetic books, writes reusable caches, runs a strategy, and exports
 `summary.json`, `strategy.json`, `orders.csv`, and `fills.csv`. No credentials or downloads are needed.
 The summary preserves the full instrument definitions and execution scenario, including fees,
-acknowledgement delay, and depth-consumption lifetime. Use a new output directory for each run.
+acknowledgement delay, depth-consumption lifetime, and the actual risk limits. Use a new output directory for each run.
 
 Try the same workflow with other settlement conventions:
 
@@ -99,6 +99,11 @@ scenario = Scenario(
     ack_latency_ns=2_000_000,
 )
 ```
+
+Use `Scenario.latency_by_instrument` for different order/acknowledgement delays per instrument,
+and `RiskLimits(per_instrument={instrument.key: 2_000})` for different position caps. Zero caps
+disable individual instruments. The [instrument guide](docs/instruments.md#instrument-specific-caps-and-delays)
+shows Python and JSON configuration, including `--risk-file` for CLI runs.
 
 These costs are illustrative configuration values. Set them to the execution conditions you want
 to evaluate. Spot shorting defaults to disabled; enable `shortable=True` only when the model should
@@ -195,4 +200,6 @@ python -m build
 
 CI checks the NumPy-only path, compiled replay on Linux and macOS, documentation links, and an
 installed wheel outside the checkout. See [Contributing](CONTRIBUTING.md) and the
-[changelog](CHANGELOG.md). License: proprietary.
+[changelog](CHANGELOG.md). Our [design review](docs/library_design_review.md) compares the architecture
+with LEAN, NautilusTrader, Backtrader, and vectorbt and records the implementation roadmap.
+License: proprietary.

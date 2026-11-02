@@ -24,6 +24,7 @@ from __future__ import annotations
 import gzip
 from collections.abc import Iterable, Iterator
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from io import BytesIO
 from pathlib import Path
 from typing import Any, BinaryIO, Final
@@ -624,8 +625,14 @@ def _reference_number(token: str, *, what: str, line: str) -> Decimal:
 
 def _reference_ticks(token: str, instrument: InstrumentSpec, line: str) -> int:
     price = _reference_number(token, what="price", line=line)
-    ticks = price / instrument.tick_size
-    if ticks != ticks.to_integral_value():
+    if not price:
+        return 0
+    if price and price < instrument.tick_size:
+        raise InvalidDataError("price is not on the instrument tick grid", context={"line": line[:160]})
+    if price and price.adjusted() > instrument.tick_size.adjusted() + 10:
+        raise InvalidDataError("value overflows int32 storage", context={"line": line[:160]})
+    ticks = Fraction(price) / Fraction(instrument.tick_size)
+    if ticks.denominator != 1:
         raise InvalidDataError("price is not on the instrument tick grid", context={"line": line[:160]})
     if ticks > _INT32_MAX:
         raise InvalidDataError("value overflows int32 storage", context={"line": line[:160]})
@@ -633,8 +640,15 @@ def _reference_ticks(token: str, instrument: InstrumentSpec, line: str) -> int:
 
 
 def _reference_units(token: str, instrument: InstrumentSpec, line: str) -> int:
-    size = _reference_number(token, what="size", line=line) / instrument.quantity_step
-    if size != size.to_integral_value():
+    value = _reference_number(token, what="size", line=line)
+    if not value:
+        return 0
+    if value and value < instrument.quantity_step:
+        raise InvalidDataError("size is not on the instrument quantity grid", context={"line": line[:160]})
+    if value and value.adjusted() > instrument.quantity_step.adjusted() + 10:
+        raise InvalidDataError("value overflows int32 storage", context={"line": line[:160]})
+    size = Fraction(value) / Fraction(instrument.quantity_step)
+    if size.denominator != 1:
         raise InvalidDataError("size is not on the instrument quantity grid", context={"line": line[:160]})
     if size > _INT32_MAX:
         raise InvalidDataError("value overflows int32 storage", context={"line": line[:160]})

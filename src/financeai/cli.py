@@ -15,16 +15,14 @@ from typing import Any
 
 import financeai
 from financeai.core.errors import FinanceAIError, InvalidConfigError
+from financeai.core.serialization import loads_strict
 
 
 def _json(path: str) -> dict[str, Any]:
-    try:
-        value = json.loads(Path(path).read_text())
-        if not isinstance(value, dict):
-            raise InvalidConfigError("JSON configuration must be an object")
-        return value
-    except json.JSONDecodeError as exc:
-        raise InvalidConfigError("invalid JSON configuration", context={"file": path}) from exc
+    value = loads_strict(Path(path).read_bytes())
+    if not isinstance(value, dict):
+        raise InvalidConfigError("JSON configuration must be an object")
+    return value
 
 
 def _cmd_ingest(args: argparse.Namespace) -> int:
@@ -66,10 +64,15 @@ def _cmd_ingest(args: argparse.Namespace) -> int:
 
 
 def _run_one(
-    cfg_path: str, caches: Sequence[str], scenario_name: str, out: Path, scenario_file: str | None = None
+    cfg_path: str,
+    caches: Sequence[str],
+    scenario_name: str,
+    out: Path,
+    scenario_file: str | None = None,
+    risk_file: str | None = None,
 ) -> dict[str, object]:
     from financeai.application.strategy import StrategyConfig, load_market, run_strategy, write_run_outputs
-    from financeai.domains.market.scenario import Scenario, demo_scenarios
+    from financeai.domains.market.scenario import RiskLimits, Scenario, demo_scenarios
 
     cfg = StrategyConfig.load(cfg_path)
     prep = load_market(caches, cfg.instruments)
@@ -80,26 +83,28 @@ def _run_one(
         raise InvalidConfigError("unknown scenario", context={"known": sorted(scenarios)})
     else:
         scenario = scenarios[scenario_name]
-    result = run_strategy(prep, cfg, scenario)
+    limits = RiskLimits.from_mapping(_json(risk_file)) if risk_file else RiskLimits()
+    result = run_strategy(prep, cfg, scenario, limits)
     return write_run_outputs(result, prep, cfg, scenario, out)
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
-    summary = _run_one(args.config, args.cache, args.scenario, Path(args.out), args.scenario_file)
+    summary = _run_one(args.config, args.cache, args.scenario, Path(args.out), args.scenario_file, args.risk_file)
     print(json.dumps({k: summary[k] for k in ("scenario", "valid", "net_pnl", "round_trips")}))
     return 0
 
 
 def _cmd_suite(args: argparse.Namespace) -> int:
     from financeai.application.strategy import StrategyConfig, load_market, run_strategy, write_run_outputs
-    from financeai.domains.market.scenario import demo_scenarios
+    from financeai.domains.market.scenario import RiskLimits, demo_scenarios
 
     cfg = StrategyConfig.load(args.config)
     prep = load_market(args.cache, cfg.instruments)  # one prepared market for all scenarios
     out = Path(args.out)
     results = []
+    limits = RiskLimits.from_mapping(_json(args.risk_file)) if args.risk_file else RiskLimits()
     for name, scenario in demo_scenarios(prep.data.instruments).items():
-        result = run_strategy(prep, cfg, scenario)
+        result = run_strategy(prep, cfg, scenario, limits)
         results.append(write_run_outputs(result, prep, cfg, scenario, out / name))
     out.mkdir(parents=True, exist_ok=True)
     (out / "suite.json").write_text(json.dumps({"strategy": cfg.name, "results": results}, indent=2) + "\n")
@@ -128,6 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
         p.add_argument("config")
         p.add_argument("--cache", action="append", required=True, help="tape cache directory (repeat per venue)")
         p.add_argument("--out", required=True)
+        p.add_argument("--risk-file", help="JSON default and per-instrument position limits")
         if name == "run":
             p.add_argument("--scenario", default="base")
             p.add_argument("--scenario-file", help="JSON execution costs and timing, overriding the demo scenario")

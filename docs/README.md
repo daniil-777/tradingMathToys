@@ -29,3 +29,5 @@ historical optimization problem, never signals a live strategy could observe.
 
 The inverse-specific solvers require their documented payoff and fee conventions. General
 replay, labels, and accounting support spot, linear, and inverse instruments.
+
+[Library design review and roadmap](library_design_review.md): primary-source comparison with established libraries.

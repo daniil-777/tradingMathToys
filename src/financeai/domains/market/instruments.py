@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, DecimalException
 from enum import StrEnum
+from fractions import Fraction
 from typing import Any
 
 from financeai.core.errors import InvalidConfigError
@@ -96,8 +97,8 @@ class InstrumentSpec:
     @property
     def tick_micro(self) -> int:
         """Integer micro-price grid for the optional fast text decoder."""
-        value = self.tick_size * 1_000_000
-        if value != value.to_integral_value() or not 1 <= value <= _INT64_MAX:
+        value = Fraction(self.tick_size) * 1_000_000
+        if value.denominator != 1 or not 1 <= value <= _INT64_MAX:
             raise InvalidConfigError("this instrument needs the exact-decimal text decoder")
         return int(value)
 

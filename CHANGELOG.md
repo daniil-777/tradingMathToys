@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Per-instrument position caps and independent order/acknowledgement latency overrides.
+- JSON risk configuration through the CLI; replay exports preserve actual limits.
+- Labels, research solvers, and reports honor the selected instrument controls.
+- Exact decimal grid checks independent of Decimal context precision, plus settlement overflow checks.
+- Heterogeneous portfolio regressions and a sourced library architecture review.
+
 ## 0.2.0.dev0
 
 Initial public preview of the generalized library.

@@ -136,7 +136,7 @@ def settle(
     instruments: Sequence[InstrumentSpec],
     fees: Sequence[Decimal],
     *,
-    cap_units: int,
+    cap_units: int | Sequence[int],
     fees_per_unit: Sequence[Decimal] | None = None,
 ) -> Settlement:
     """Per-venue positions, cap excursions and the terminal score (float, compensated)."""
@@ -146,6 +146,13 @@ def settle(
     fixed = tuple(fees_per_unit) if fees_per_unit is not None else (Decimal(0),) * n_venues
     if len(fixed) != n_venues:
         raise InvalidDataError("need one fixed fee per instrument")
+    caps = (cap_units,) * n_venues if isinstance(cap_units, int) and not isinstance(cap_units, bool) else cap_units
+    if (
+        not isinstance(caps, Sequence)
+        or len(caps) != n_venues
+        or any(isinstance(cap, bool) or not isinstance(cap, int) or not 0 <= cap <= (2**63 - 1) // 2 for cap in caps)
+    ):
+        raise InvalidDataError("need one non-negative int64-safe position cap per instrument")
     _check_venues(fills, n_venues)
     final: list[int] = []
     max_abs: list[int] = []
@@ -157,8 +164,11 @@ def settle(
         mask = fills.venue == v
         signed = fills.side[mask].astype(np.int64) * fills.qty_units[mask]
         path = np.cumsum(signed)
+        previous = np.concatenate((np.zeros(1, np.int64), path[:-1])) if path.size else path
+        if np.any((signed > 0) & (path < previous)) or np.any((signed < 0) & (path > previous)):
+            raise InvalidDataError("position accumulation overflows int64")
         final.append(int(path[-1]) if path.size else 0)
-        max_abs.append(int(np.abs(path).max()) if path.size else 0)
+        max_abs.append(max(int(path.max()), -int(path.min())) if path.size else 0)
         cash.append(math.fsum(fills.cash[mask].tolist()))
         spec = instruments[v]
         price = fills.px_ticks[mask].astype(np.float64) * spec.tick_float
@@ -166,10 +176,10 @@ def settle(
         charges = value / price if spec.inverse else value * price
         charges += fills.qty_units[mask] * (float(spec.quantity_step) * float(fixed[v]))
         fee_cash.append(math.fsum(charges.tolist()))
-        traded.append(int(fills.qty_units[mask].sum()))
+        traded.append(sum(fills.qty_units[mask].tolist()))
         counts.append(int(mask.sum()))
     reason: str | None = None
-    if any(m > cap_units for m in max_abs):
+    if any(m > cap for m, cap in zip(max_abs, caps, strict=True)):
         reason = "cap_exceeded"
     elif any(final):
         reason = "not_flat"

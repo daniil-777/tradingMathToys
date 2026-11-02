@@ -241,6 +241,7 @@ class ReplayResult:
     orders: Orders
     settlement: Settlement
     decisions: int
+    limits: RiskLimits | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -524,10 +525,10 @@ def _decide(
             blocked = True
             continue
         tgt = state * p_dir[v] * ep_size[v]
-        if tgt > cap:
-            tgt = cap
-        elif tgt < -cap:
-            tgt = -cap
+        if tgt > cap[v]:
+            tgt = cap[v]
+        elif tgt < -cap[v]:
+            tgt = -cap[v]
         if not shortable[v] and tgt < 0:
             tgt = 0
         tgt = (abs(tgt) // lot[v]) * lot[v] * (1 if tgt >= 0 else -1)
@@ -540,7 +541,7 @@ def _decide(
         delta = tgt - k
         if delta == 0:
             continue
-        if t + lat > s_exec:
+        if t + lat[v] > s_exec:
             continue
         side = 1 if delta > 0 else -1
         qty = abs(delta)
@@ -550,7 +551,7 @@ def _decide(
         if oid >= o_venue.shape[0]:
             st_i[_I_ERROR] = 1
             return
-        arrival = t + lat
+        arrival = t + lat[v]
         if timing == 0:
             row = np.searchsorted(exch_env[v], arrival, side="right") - 1
         else:
@@ -606,7 +607,7 @@ def _decide(
                 f_qty[fi] = out_qty[i]
                 f_submit[fi] = t
                 f_arrival[fi] = arrival
-                f_ack[fi] = arrival + ack_lat
+                f_ack[fi] = arrival + ack_lat[v]
                 f_cash[fi] = fill_cash(side, out_qty[i], out_px[i] * tick[v], fee[v], inverse[v], factor[v], fixed[v])
                 st_i[_I_NFILL] = fi + 1
                 filled += out_qty[i]
@@ -619,14 +620,14 @@ def _decide(
         o_limit[oid] = limit
         o_submit[oid] = t
         o_arrival[oid] = arrival
-        o_ack[oid] = arrival + ack_lat
+        o_ack[oid] = arrival + ack_lat[v]
         o_filled[oid] = filled
         o_reason[oid] = 3 if flatten else (1 if increasing else 2)
         o_row[oid] = row
         st_i[_I_NORD] = oid + 1
         true_pos[v] += side * filled
         pend[v] = 1
-        pend_ack[v] = arrival + ack_lat
+        pend_ack[v] = arrival + ack_lat[v]
         pend_fill[v] = side * filled
         pend_inc[v] = 1 if increasing else 0
         pend_sub[v] = t
@@ -1217,6 +1218,12 @@ def run_replay(
         raise InvalidConfigError("a prepared market already defines its event stream")
     prep = data if isinstance(data, PreparedMarket) else PreparedMarket.build(data, stream)
     nv = len(prep.data)
+    scenario.validate_instruments(prep.data.instruments)
+    caps = limits.caps_for(prep.data.instruments)
+    latencies = tuple(scenario.latency_for(i) for i in prep.data.instruments)
+    order_latencies = np.array([latency.order_latency_ns for latency in latencies], np.int64)
+    ack_latencies = np.array([latency.ack_ns for latency in latencies], np.int64)
+    cap_array = np.asarray(caps, dtype=np.int64)
     if len(params.direction) != nv:
         raise InvalidConfigError("params need one direction/size per venue", context={"venues": nv})
     last = int(prep.stream.recv_ns[-1]) if len(prep.stream) else 0
@@ -1285,12 +1292,12 @@ def run_replay(
             prep.cash_factor,
             prep.shortable,
             fixed,
-            scenario.order_latency_ns,
-            scenario.ack_ns,
+            order_latencies,
+            ack_latencies,
             int(scenario.timing),
             scenario.consumption_ttl_ns,
             float(scenario.depth_fraction),
-            limits.max_abs_position_units,
+            cap_array,
             session.start_ns,
             session.entry_cutoff_ns,
             session.flatten_start_ns,
@@ -1316,12 +1323,14 @@ def run_replay(
         fills,
         instruments,
         fees,
-        cap_units=limits.max_abs_position_units,
+        cap_units=caps,
         fees_per_unit=tuple(scenario.fee_per_unit_for(i) for i in instruments),
     )
     if settlement.final_position_units != tuple(int(x) for x in true_pos):
         raise InvariantViolationError("ledger positions disagree with simulator inventory")
-    return ReplayResult(fills=fills, orders=orders, settlement=settlement, decisions=int(st_i[_I_DECISIONS]))
+    return ReplayResult(
+        fills=fills, orders=orders, settlement=settlement, decisions=int(st_i[_I_DECISIONS]), limits=limits
+    )
 
 
 __all__ = [

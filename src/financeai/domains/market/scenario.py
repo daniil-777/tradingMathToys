@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from decimal import Decimal, InvalidOperation
 from enum import IntEnum
 from types import MappingProxyType
@@ -39,6 +39,45 @@ def _check_ns(name: str, value: int) -> None:
         )
 
 
+def _check_key(key: str) -> None:
+    if not isinstance(key, str) or not key or key.strip() != key:
+        raise InvalidConfigError("instrument keys must be non-empty strings without surrounding whitespace")
+
+
+@dataclass(frozen=True, slots=True)
+class InstrumentLatency:
+    """Submission-to-exchange and exchange-to-controller delays for one instrument."""
+
+    order_latency_ns: int
+    ack_latency_ns: int | None = None
+
+    def __post_init__(self) -> None:
+        _check_ns("order_latency_ns", self.order_latency_ns)
+        ack = self.order_latency_ns if self.ack_latency_ns is None else self.ack_latency_ns
+        _check_ns("ack_latency_ns", ack)
+        if self.order_latency_ns == 0 and ack == 0:
+            raise InvalidConfigError("order and acknowledgement latency cannot both be 0: zero round trip")
+        object.__setattr__(self, "ack_latency_ns", ack)
+
+    @property
+    def ack_ns(self) -> int:
+        assert self.ack_latency_ns is not None
+        return self.ack_latency_ns
+
+    def to_mapping(self) -> dict[str, int]:
+        return {"order_latency_ns": self.order_latency_ns, "ack_latency_ns": self.ack_ns}
+
+    @classmethod
+    def from_mapping(cls, doc: Mapping[str, Any]) -> InstrumentLatency:
+        if (
+            not isinstance(doc, Mapping)
+            or "order_latency_ns" not in doc
+            or doc.keys() - {"order_latency_ns", "ack_latency_ns"}
+        ):
+            raise InvalidConfigError("instrument latency requires order_latency_ns and optional ack_latency_ns")
+        return cls(**doc)
+
+
 @dataclass(frozen=True, slots=True)
 class Scenario:
     name: str
@@ -57,6 +96,8 @@ class Scenario:
     consumption is netted). Decisions still observe the displayed book. 1.0 is the displayed depth."""
     fees_per_unit: Mapping[str, Decimal] = field(default_factory=dict)
     """Additional settlement-currency charge per native quantity, keyed by instrument."""
+    latency_by_instrument: Mapping[str, InstrumentLatency] = field(default_factory=dict)
+    """Instrument-specific delays; absent keys use the scenario's default delays."""
     _fees: Mapping[str, Decimal] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
@@ -64,6 +105,7 @@ class Scenario:
             raise InvalidConfigError("scenario name is required")
         fees: dict[str, Decimal] = {}
         for key, value in dict(self.fees).items():
+            _check_key(key)
             if not isinstance(value, Decimal) or not value.is_finite() or not Decimal(0) <= value < 1:
                 raise InvalidConfigError("fee must be a Decimal in [0, 1)", context={"key": key})
             fees[key] = value
@@ -71,6 +113,7 @@ class Scenario:
         object.__setattr__(self, "fees", self._fees)
         fixed = dict(self.fees_per_unit)
         for key, value in fixed.items():
+            _check_key(key)
             if not isinstance(value, Decimal) or not value.is_finite() or value < 0 or not math.isfinite(float(value)):
                 raise InvalidConfigError("fee per native quantity must be a non-negative Decimal", context={"key": key})
         object.__setattr__(self, "fees_per_unit", MappingProxyType(fixed))
@@ -90,6 +133,12 @@ class Scenario:
         _check_ns("consumption_ttl_ns", self.consumption_ttl_ns)
         if not isinstance(self.timing, TimingMode):
             raise InvalidConfigError("timing must be a TimingMode")
+        latencies = dict(self.latency_by_instrument)
+        for key, latency in latencies.items():
+            _check_key(key)
+            if not isinstance(latency, InstrumentLatency):
+                raise InvalidConfigError("latency overrides must be InstrumentLatency values", context={"key": key})
+        object.__setattr__(self, "latency_by_instrument", MappingProxyType(latencies))
         fraction: object = self.depth_fraction
         if isinstance(fraction, bool) or not isinstance(fraction, int | float) or not 0.0 < fraction <= 1.0:
             raise InvalidConfigError("depth_fraction must be a number in (0, 1]", context={"got": fraction})
@@ -111,14 +160,48 @@ class Scenario:
     def fee_per_unit_for(self, instrument: InstrumentSpec) -> Decimal:
         return self.fees_per_unit.get(instrument.key, Decimal(0))
 
+    def latency_for(self, instrument: InstrumentSpec) -> InstrumentLatency:
+        return self.latency_by_instrument.get(instrument.key, InstrumentLatency(self.order_latency_ns, self.ack_ns))
+
+    def for_instrument(self, instrument: InstrumentSpec) -> Scenario:
+        """Resolve a single-instrument view for label and research algorithms."""
+        if not self.latency_by_instrument:
+            return self
+        latency = self.latency_for(instrument)
+        return replace(
+            self, order_latency_ns=latency.order_latency_ns, ack_latency_ns=latency.ack_ns, latency_by_instrument={}
+        )
+
+    def __reduce__(self) -> tuple[Any, tuple[dict[str, Any]]]:
+        return type(self).from_mapping, (self.to_mapping(),)
+
+    def validate_instruments(self, instruments: Sequence[InstrumentSpec]) -> None:
+        unknown = self.latency_by_instrument.keys() - {i.key for i in instruments}
+        if unknown:
+            raise InvalidConfigError(
+                "latency overrides reference unknown instruments", context={"unknown": sorted(unknown)}
+            )
+
     @classmethod
     def from_mapping(cls, doc: Mapping[str, Any]) -> Scenario:
         """Load explicit execution assumptions; decimal fee rates must be strings."""
         required = {"name", "fees", "order_latency_ns"}
-        optional = {"ack_latency_ns", "timing", "consumption_ttl_ns", "depth_fraction", "fees_per_unit"}
+        optional = {
+            "ack_latency_ns",
+            "timing",
+            "consumption_ttl_ns",
+            "depth_fraction",
+            "fees_per_unit",
+            "latency_by_instrument",
+        }
         if not isinstance(doc, Mapping) or not required <= doc.keys() or doc.keys() - required - optional:
             raise InvalidConfigError("scenario keys differ", context={"required": sorted(required)})
         values = dict(doc)
+        if "latency_by_instrument" in values:
+            overrides = values["latency_by_instrument"]
+            if not isinstance(overrides, Mapping):
+                raise InvalidConfigError("latency_by_instrument must be an object")
+            values["latency_by_instrument"] = {k: InstrumentLatency.from_mapping(v) for k, v in overrides.items()}
         for name in ("fees", "fees_per_unit"):
             rates = values.get(name, {})
             if not isinstance(rates, Mapping) or any(
@@ -137,7 +220,7 @@ class Scenario:
         return cls(**values)
 
     def to_mapping(self) -> dict[str, Any]:
-        return {
+        doc = {
             "name": self.name,
             "fees": {k: str(v) for k, v in self.fees.items()},
             "fees_per_unit": {k: str(v) for k, v in self.fees_per_unit.items()},
@@ -147,6 +230,9 @@ class Scenario:
             "consumption_ttl_ns": self.consumption_ttl_ns,
             "depth_fraction": self.depth_fraction,
         }
+        if self.latency_by_instrument:
+            doc["latency_by_instrument"] = {k: v.to_mapping() for k, v in self.latency_by_instrument.items()}
+        return doc
 
 
 DEMO_BASE_FEES: Final = {key: Decimal("0.0002") for key in INSTRUMENTS}
@@ -170,6 +256,8 @@ def demo_scenarios(instruments: Sequence[InstrumentSpec] | None = None) -> dict[
 @dataclass(frozen=True, slots=True)
 class RiskLimits:
     max_abs_position_units: int = 10_000
+    per_instrument: Mapping[str, int] = field(default_factory=dict)
+    """Overrides in stored quantity units; zero disables trading on that instrument."""
 
     def __post_init__(self) -> None:
         if (
@@ -180,6 +268,38 @@ class RiskLimits:
             raise InvalidConfigError(
                 "max_abs_position_units must be an integer in [1, 2**62 - 1] so a full reversal fits int64"
             )
+        overrides = dict(self.per_instrument)
+        for key, cap in overrides.items():
+            _check_key(key)
+            if isinstance(cap, bool) or not isinstance(cap, int) or not 0 <= cap <= (2**63 - 1) // 2:
+                raise InvalidConfigError("instrument caps must be integers in [0, 2**62 - 1]", context={"key": key})
+        object.__setattr__(self, "per_instrument", MappingProxyType(overrides))
+
+    def cap_for(self, instrument: InstrumentSpec) -> int:
+        return self.per_instrument.get(instrument.key, self.max_abs_position_units)
+
+    def __hash__(self) -> int:
+        return hash((self.max_abs_position_units, tuple(sorted(self.per_instrument.items()))))
+
+    def __reduce__(self) -> tuple[Any, tuple[dict[str, Any]]]:
+        return type(self).from_mapping, (self.to_mapping(),)
+
+    def caps_for(self, instruments: Sequence[InstrumentSpec]) -> tuple[int, ...]:
+        unknown = self.per_instrument.keys() - {i.key for i in instruments}
+        if unknown:
+            raise InvalidConfigError("risk limits reference unknown instruments", context={"unknown": sorted(unknown)})
+        return tuple(self.cap_for(i) for i in instruments)
+
+    def to_mapping(self) -> dict[str, Any]:
+        return {"max_abs_position_units": self.max_abs_position_units, "per_instrument": dict(self.per_instrument)}
+
+    @classmethod
+    def from_mapping(cls, doc: Mapping[str, Any]) -> RiskLimits:
+        if not isinstance(doc, Mapping) or doc.keys() - {"max_abs_position_units", "per_instrument"}:
+            raise InvalidConfigError("risk limits contain unknown keys")
+        if "per_instrument" in doc and not isinstance(doc["per_instrument"], Mapping):
+            raise InvalidConfigError("per_instrument risk limits must be an object")
+        return cls(**doc)
 
 
 @dataclass(frozen=True, slots=True)

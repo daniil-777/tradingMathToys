@@ -575,7 +575,9 @@ def summary(
     fills = _ordered_fills(result)
     st = result.settlement
     instruments = prep.data.instruments
-    cap = limits.max_abs_position_units if limits is not None else None
+    limits = limits or result.limits
+    caps = limits.caps_for(instruments) if limits is not None else None
+    cap = caps[0] if caps is not None and len(set(caps)) == 1 else None
 
     final_pos: list[int] = []
     max_abs: list[int] = []
@@ -612,8 +614,8 @@ def summary(
     not_flat = any(final_pos)
     violations: list[str] = []
     validity_match: bool | None
-    if cap is not None:
-        if any(m > cap for m in max_abs):
+    if caps is not None:
+        if any(m > c for m, c in zip(max_abs, caps, strict=True)):
             violations.append("cap_exceeded")
         if not_flat:
             violations.append("not_flat")
@@ -650,12 +652,16 @@ def summary(
         "episodes_sum_to_net": (None if net is None else _close(math.fsum(ep.net_pnl[closed].tolist()), net)),
     }
     orders = result.orders
+    latencies = {spec.key: scenario.latency_for(spec).to_mapping() for spec in instruments} if scenario else {}
+    order_delays = {latency["order_latency_ns"] for latency in latencies.values()}
+    ack_delays = {latency["ack_latency_ns"] for latency in latencies.values()}
     requested = int(orders.qty_units.sum())
     return {
         "scenario": scenario.name if scenario is not None else None,
         "timing_mode": scenario.timing.name if scenario is not None else None,
-        "order_latency_ns": scenario.order_latency_ns if scenario is not None else None,
-        "ack_latency_ns": scenario.ack_ns if scenario is not None else None,
+        "order_latency_ns": next(iter(order_delays)) if len(order_delays) == 1 else None,
+        "ack_latency_ns": next(iter(ack_delays)) if len(ack_delays) == 1 else None,
+        "latency_by_instrument": latencies,
         "venues": [spec.key for spec in instruments],
         "valid": bool(st.valid),
         "reason": st.reason,
@@ -682,6 +688,7 @@ def summary(
         "max_abs_position_units": max_abs,
         "final_position_units": final_pos,
         "cap_units": cap,
+        "cap_units_by_instrument": list(caps) if caps is not None else None,
         "max_drawdown": dd.max_pnl,
         "drawdown_peak_ns": _opt_time(dd.peak_ns),
         "drawdown_trough_ns": _opt_time(dd.trough_ns),

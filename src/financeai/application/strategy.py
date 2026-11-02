@@ -467,16 +467,20 @@ def run_strategy(
 def summarize(result: ReplayResult, prep: PreparedMarket, cfg: StrategyConfig, scenario: Scenario) -> dict[str, Any]:
     st = result.settlement
     entries = (result.orders.reason == REASON_ENTRY) & (result.orders.filled_units > 0)
+    latencies = {spec.key: scenario.latency_for(spec).to_mapping() for spec in prep.data.instruments}
+    delays = {latency["order_latency_ns"] for latency in latencies.values()}
     out = {
         "strategy": cfg.name,
         "scenario": scenario.name,
-        "order_latency_ms": scenario.order_latency_ns / _MS,
+        "order_latency_ms": next(iter(delays)) / _MS if len(delays) == 1 else None,
+        "latency_by_instrument": latencies,
         "timing": scenario.timing.name,
         "fees": {k: str(v) for k, v in scenario.fees.items()},
         "fees_per_unit": {k: str(v) for k, v in scenario.fees_per_unit.items()},
         "instruments": list(cfg.instruments),
         "instrument_specs": [instrument.to_mapping() for instrument in prep.data.instruments],
         "scenario_config": scenario.to_mapping(),
+        "risk_limits": result.limits.to_mapping() if result.limits is not None else None,
         "valid": st.valid,
         "reason": st.reason,
         "net_pnl": st.net_pnl,

@@ -164,6 +164,7 @@ def retime_depth_oracle(
     Full reference replay remains the independent feasibility check. An unchanged
     sweep means coordinate-stationarity in float64, not exact/global optimality.
     """
+    scenario = scenario.for_instrument(tapes.instrument)
     if isinstance(max_passes, bool) or not isinstance(max_passes, int) or max_passes <= 0:
         raise InvalidConfigError("max_passes must be a positive integer")
     if initial.instrument_key != tapes.instrument.key:
@@ -174,7 +175,7 @@ def retime_depth_oracle(
     n = len(initial.submit_ns)
     if len(initial.observed_rows) != n or len(initial.targets_units) != n:
         raise InvalidConfigError("schedule columns must have equal lengths")
-    cap, lot = limits.max_abs_position_units, tapes.instrument.lot_size
+    cap, lot = limits.cap_for(tapes.instrument), tapes.instrument.lot_size
     targets = initial.targets_units
     if np.any(targets > cap) or np.any(targets < -cap) or np.any(targets % lot):
         raise InvalidConfigError("targets must respect the cap and lot")

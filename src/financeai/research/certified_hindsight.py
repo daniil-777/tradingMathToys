@@ -282,6 +282,7 @@ def certify_adaptive_depth(
     conservative bound on every prefix are checked with Python big integers
     before any int64 kernel runs. Unsupported integer ranges are rejected.
     """
+    scenario = scenario.for_instrument(tapes.instrument)
     if isinstance(scale, bool) or not isinstance(scale, int) or scale < 1:
         raise InvalidConfigError("scale must be a positive integer power of ten")
     reduced = scale
@@ -298,7 +299,7 @@ def certify_adaptive_depth(
     observed, times, arrivals, valid = _depth_inputs(
         tapes, scenario, session, limits, step_units, (candidate_spacing_ns, *include_spacing_ns), slip_ticks
     )
-    cap, lot = limits.max_abs_position_units, tapes.instrument.lot_size
+    cap, lot = limits.cap_for(tapes.instrument), tapes.instrument.lot_size
     fee, tick = Fraction(scenario.fee_for(tapes.instrument)), Fraction(tapes.instrument.tick_size)
     buy = scale * lot * (1 - fee) / tick
     sell = scale * lot * (-1 - fee) / tick

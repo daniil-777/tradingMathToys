@@ -89,7 +89,9 @@ def _merge_clocks_numpy(
 
 @dataclass(frozen=True)
 class MarketData:
-    """Tapes for one or more venues (index order defines the venue ids 0..n-1)."""
+    """Tapes for distinct instruments (index order defines logical venue IDs 0..n-1).
+
+    Multiple instruments may share an exchange name; identity is the full venue/symbol key."""
 
     venues: tuple[MarketTapes, ...]
 

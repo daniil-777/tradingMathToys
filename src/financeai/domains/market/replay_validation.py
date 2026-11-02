@@ -23,7 +23,9 @@ def validate_clock_headroom(
     Reserve int64 max for the engine's no-event sentinel as well as avoiding overflow.
     All arithmetic here uses Python ints, before values reach a compiled kernel.
     """
-    horizon = scenario.order_latency_ns + max(scenario.ack_ns, scenario.consumption_ttl_ns) + cooldown_ns
+    defaults = (scenario.order_latency_ns, scenario.ack_ns)
+    delays = [defaults, *((v.order_latency_ns, v.ack_ns) for v in scenario.latency_by_instrument.values())]
+    horizon = max(order + max(ack, scenario.consumption_ttl_ns) for order, ack in delays) + cooldown_ns
     latest = max(last_event_ns, session.end_ns)
     if latest > MAX_REPLAY_NS - horizon:
         raise InvalidDataError(
