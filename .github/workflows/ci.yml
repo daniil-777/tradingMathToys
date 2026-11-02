@@ -51,10 +51,13 @@ jobs:
     env:
       FINANCEAI_DISABLE_JIT: ${{ matrix.disable-jit }}
       MPLBACKEND: Agg
-      MPLCONFIGDIR: ${{ runner.temp }}/matplotlib
-      NUMBA_CACHE_DIR: ${{ runner.temp }}/numba
     steps:
       - uses: actions/checkout@v7
+      - name: Configure runtime caches
+        shell: bash
+        run: |
+          echo "MPLCONFIGDIR=$RUNNER_TEMP/matplotlib" >> "$GITHUB_ENV"
+          echo "NUMBA_CACHE_DIR=$RUNNER_TEMP/numba" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
