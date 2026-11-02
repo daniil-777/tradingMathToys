@@ -1,0 +1,842 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title><!--FINANCEAI:TITLE--></title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1220;
+        --panel: #121e30;
+        --ink: #edf2f8;
+        --muted: #a6b6cc;
+        --line: #2b3d55;
+        --accent: #78b7ff;
+        --bad: #ffb095;
+        --shadow: 0 16px 45px #0002;
+      }
+      :root[data-theme="light"] {
+        color-scheme: light;
+        --bg: #f3f5f8;
+        --panel: #fff;
+        --ink: #172940;
+        --muted: #536780;
+        --line: #d8e1ed;
+        --accent: #1762ae;
+        --bad: #a53713;
+        --shadow: 0 16px 45px #243b5310;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.5 system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      main {
+        max-width: 1240px;
+        overflow-wrap: anywhere;
+        margin: auto;
+        padding: 36px 28px 48px;
+      }
+      .eyebrow {
+        font-size: 12px;
+        font-weight: 750;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+      }
+      h1 {
+        font-size: clamp(27px, 3.5vw, 42px);
+        letter-spacing: -0.035em;
+        line-height: 1.15;
+        margin: 12px 0;
+      }
+      h2 {
+        font-size: 19px;
+        margin: 0 0 8px;
+      }
+      p {
+        margin: 8px 0;
+      }
+      .muted,
+      small {
+        color: var(--muted);
+      }
+      .status {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 18px 0;
+      }
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        padding: 5px 12px;
+        font-size: 12px;
+        font-weight: 650;
+      }
+      .invalid {
+        color: var(--bad);
+        border-color: var(--bad);
+      }
+      .toolbar {
+        display: flex;
+        gap: 14px;
+        align-items: end;
+        flex-wrap: wrap;
+        padding: 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        margin: 24px 0 16px;
+      }
+      label {
+        display: grid;
+        gap: 5px;
+        font-size: 12px;
+        font-weight: 650;
+        color: var(--muted);
+      }
+      select,
+      button {
+        font: inherit;
+        font-size: 14px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        padding: 9px 12px;
+        background: var(--panel);
+        color: var(--ink);
+        min-height: 40px;
+      }
+      select {
+        max-width: 390px;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        border-color: var(--accent);
+      }
+      :focus-visible {
+        outline: 3px solid var(--accent);
+        outline-offset: 3px;
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 17px;
+      }
+      .card h2 {
+        font-size: 12px;
+        letter-spacing: 0.02em;
+        font-weight: 600;
+        color: var(--muted);
+      }
+      .value {
+        font-size: clamp(20px, 2.5vw, 29px);
+        font-weight: 700;
+        letter-spacing: -0.035em;
+        margin: 6px 0 0;
+      }
+      .unit {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .chart-shell {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--panel);
+        overflow: hidden;
+        box-shadow: var(--shadow);
+      }
+      #replay-chart {
+        height: 1120px;
+        width: 100%;
+      }
+      .guide {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        margin: 22px 0;
+      }
+      .guide section {
+        padding: 18px;
+        border-left: 3px solid var(--accent);
+        background: var(--panel);
+      }
+      .guide h2 {
+        font-size: 14px;
+      }
+      .guide p {
+        font-size: 13px;
+      }
+      .table-shell {
+        overflow: auto;
+        max-height: 410px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 12px;
+        white-space: nowrap;
+        background: var(--panel);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: var(--panel);
+        color: var(--muted);
+        font-weight: 650;
+      }
+      caption {
+        text-align: left;
+        padding: 12px;
+        color: var(--muted);
+      }
+      footer {
+        margin-top: 25px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      #render-error {
+        color: var(--bad);
+      }
+      @media (max-width: 700px) {
+        main {
+          padding: 24px 12px;
+        }
+        .cards {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .guide {
+          grid-template-columns: 1fr;
+        }
+        .toolbar {
+          gap: 10px;
+        }
+        label,
+        select {
+          width: 100%;
+          max-width: 100%;
+        }
+        #replay-chart {
+          height: 1080px;
+        }
+        .card {
+          padding: 12px;
+        }
+      }
+    </style>
+    <script>
+      <!--FINANCEAI:PLOTLY-->
+    </script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="eyebrow">FINANCEAI / REPLAY EXPLORER</div>
+        <h1 id="report-title"></h1>
+        <p class="muted">
+          Follow received prices → actual fills → acknowledged positions →
+          marked results.
+        </p>
+        <div class="status">
+          <span class="badge" id="evidence"></span
+          ><span class="badge" id="account-status"></span
+          ><span class="badge" id="record-count"></span>
+        </div>
+        <small id="period"></small>
+      </header>
+      <div class="toolbar" aria-label="Report controls">
+        <label for="instrument"
+          >Price &amp; position instrument<select id="instrument"></select
+        ></label>
+        <label for="currency"
+          >Full-account settlement currency<select id="currency"></select
+        ></label>
+        <label for="theme"
+          >Appearance<select id="theme">
+            <option value="dark">Dark</option>
+            <option value="light">Light</option>
+          </select></label
+        >
+        <button type="button" id="reset-view">Reset view</button
+        ><button type="button" id="download-data">Download report data</button>
+      </div>
+      <p id="instrument-info" class="muted"></p>
+      <section
+        class="cards"
+        aria-label="Full-record statistics"
+        aria-live="polite"
+      >
+        <div class="card">
+          <h2>Terminal net PnL</h2>
+          <div class="value" id="net"></div>
+          <div class="unit" id="net-unit"></div>
+        </div>
+        <div class="card">
+          <h2>Maximum marked drawdown</h2>
+          <div class="value" id="drawdown"></div>
+          <div class="unit" id="drawdown-unit"></div>
+        </div>
+        <div class="card">
+          <h2>Net commissions</h2>
+          <div class="value" id="fees"></div>
+          <div class="unit" id="fees-unit"></div>
+        </div>
+        <div class="card">
+          <h2>Executed price-level fills</h2>
+          <div class="value" id="fill-count"></div>
+          <div class="unit">Selected currency · complete ledger</div>
+        </div>
+      </section>
+      <div class="chart-shell">
+        <div
+          id="replay-chart"
+          role="img"
+          aria-label="Four synchronized panels: received quotes and executions, actual and acknowledged positions, marked PnL and cash, and drawdown. Exact values are available through hover and the downloadable report data."
+        ></div>
+      </div>
+      <p id="render-error" role="alert"></p>
+      <div class="guide">
+        <section>
+          <h2>Read the execution</h2>
+          <p>
+            ▲ BUY and ▼ SELL mark actual fills at exchange arrival. × marks a
+            wholly unfilled order at its submitted limit. Received bid/ask lines
+            show the controller's observations; they may differ from the book an
+            order met.
+          </p>
+        </section>
+        <section>
+          <h2>Read the account</h2>
+          <p>
+            Solid inventory changes at fill arrival; dotted inventory changes
+            when the report is acknowledged. Marked PnL includes received-mid
+            inventory valuation. Cash is hidden initially; enable it from the
+            legend to inspect financing flows. Cash alone is not profit while
+            inventory is open. Drawdown is in settlement units, relative to the
+            prior marked peak (including the zero starting value). The curve is
+            nonpositive; the card shows the largest loss as a positive
+            magnitude.
+          </p>
+        </section>
+      </div>
+      <section aria-labelledby="events-heading">
+        <h2 id="events-heading">Execution ledger</h2>
+        <p class="muted" id="ledger-note"></p>
+        <div class="table-shell">
+          <table>
+            <caption id="ledger-caption"></caption>
+            <thead>
+              <tr>
+                <th scope="col">Event</th>
+                <th scope="col">Order</th>
+                <th scope="col">Fill units</th>
+                <th scope="col">Requested units</th>
+                <th scope="col" id="price-heading">Price</th>
+                <th scope="col">Submitted UTC</th>
+                <th scope="col">Arrived UTC</th>
+                <th scope="col">Acknowledged UTC</th>
+              </tr>
+            </thead>
+            <tbody id="events"></tbody>
+          </table>
+        </div>
+      </section>
+      <footer>
+        <p id="reduction-note"></p>
+        <p>
+          Zoom: drag a time interval; double-click or use Reset view to return.
+          All chart panels share the time axis. Missing valuations remain gaps.
+          Return percentages and Sharpe ratios require an account-capital model
+          and are not inferred here.
+        </p>
+        <p id="provenance"></p>
+      </footer>
+      <noscript
+        >This report requires JavaScript for charts. The accompanying manifest
+        describes its source records and output hash.</noscript
+      >
+    </main>
+    <script id="replay-data" type="application/json">
+      <!--FINANCEAI:DATA-->
+    </script>
+    <script>
+      "use strict";
+      const report = JSON.parse(
+        document.getElementById("replay-data").textContent,
+      );
+      const $ = (id) => document.getElementById(id);
+      const text = (id, value) => {
+        $(id).textContent = value;
+      };
+      const escapeText = (value) =>
+        String(value).replace(
+          /[&<>"']/g,
+          (c) =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[c],
+        );
+      const palettes = {
+        dark: {
+          paper: "#121e30",
+          ink: "#edf2f8",
+          muted: "#a6b6cc",
+          grid: "#2b3d55",
+          price: "#80baff",
+          ask: "#a2a7bd",
+          buy: "#50d8b2",
+          sell: "#ffb180",
+          known: "#c4b5fd",
+          cash: "#a6b6cc",
+          dd: "#ffb180",
+        },
+        light: {
+          paper: "#ffffff",
+          ink: "#172940",
+          muted: "#536780",
+          grid: "#d8e1ed",
+          price: "#1762ae",
+          ask: "#707890",
+          buy: "#007b60",
+          sell: "#ac4015",
+          known: "#7351b0",
+          cash: "#536780",
+          dd: "#ac4015",
+        },
+      };
+      function options(id, items) {
+        for (const value of items) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = value;
+          $(id).appendChild(option);
+        }
+      }
+      function number(value) {
+        if (value === null) return "Unavailable";
+        if (value !== 0 && (Math.abs(value) < 1e-5 || Math.abs(value) >= 1e10))
+          return value.toExponential(4);
+        return new Intl.NumberFormat("en", {
+          maximumSignificantDigits: 8,
+        }).format(value);
+      }
+      function line(series, name, color, axis, dash = "solid", fill) {
+        return {
+          type: "scatter",
+          mode: "lines",
+          name,
+          x: series.x,
+          y: series.y,
+          xaxis: axis === 1 ? "x" : "x" + axis,
+          yaxis: axis === 1 ? "y" : "y" + axis,
+          customdata: series.utc.map((utc, i) => [
+            utc,
+            series.ns[i],
+            series.exact[i],
+          ]),
+          hovertemplate:
+            "%{customdata[0]}<br>epoch ns %{customdata[1]}<br>" +
+            escapeText(name) +
+            ": %{customdata[2]}<extra></extra>",
+          connectgaps: false,
+          line: { color, width: 1.8, shape: "hv", dash },
+          ...(fill ? { fill: "tozeroy", fillcolor: fill } : {}),
+        };
+      }
+      function markers(asset, kind, side, color, symbol) {
+        const events = asset.events.filter(
+          (e) => e.kind === kind && (kind === "unfilled" || e.side === side),
+        );
+        const name =
+          kind === "unfilled" ? "Unfilled order (limit)" : side + " fill";
+        return {
+          type: "scatter",
+          mode: "markers",
+          name,
+          x: events.map((e) => e.x),
+          y: events.map((e) => e.price),
+          customdata: events.map((e) => [
+            e.arrival_utc,
+            e.arrival_ns,
+            e.qty_units,
+            e.submit_utc,
+            e.ack_utc,
+            e.order_id,
+            e.side,
+            e.order_latency_ns,
+            e.ack_latency_ns,
+            e.requested_units,
+            e.order_filled_units,
+            e.order_status,
+            e.price_exact,
+            e.price_ticks,
+          ]),
+          hovertemplate:
+            "<b>" +
+            name +
+            " · %{customdata[6]}</b><br>Price %{customdata[12]} (ticks %{customdata[13]})<br>Fill quantity %{customdata[2]} units<br>Requested %{customdata[9]} · order filled %{customdata[10]} · %{customdata[11]}<br>Order %{customdata[5]}<br>Submitted %{customdata[3]}<br>Arrived %{customdata[0]}<br>Acknowledged %{customdata[4]}<br>Order delay %{customdata[7]} ns · report delay %{customdata[8]} ns<br>Arrival epoch ns %{customdata[1]}<extra></extra>",
+          marker: { color, size: 10, symbol, line: { color, width: 1.2 } },
+        };
+      }
+      async function draw(reset = false) {
+        window.financeaiReportReady = false;
+        text("render-error", "");
+        const asset = report.assets.find(
+            (a) => a.key === $("instrument").value,
+          ),
+          account = report.accounts.find(
+            (a) => a.currency === $("currency").value,
+          ),
+          theme = $("theme").value,
+          p = palettes[theme];
+        document.documentElement.dataset.theme = theme;
+        text("net", number(account.net_pnl));
+        text(
+          "net-unit",
+          account.net_pnl === null
+            ? "Unavailable: full account is invalid"
+            : account.currency + " · flat, valid full account",
+        );
+        text("drawdown", number(account.max_drawdown));
+        text("drawdown-unit", account.currency + " · full marked path");
+        text("fees", number(account.commissions));
+        text("fees-unit", account.currency);
+        text("fill-count", String(account.fills));
+        text(
+          "instrument-info",
+          asset.instrument.contract_type.toUpperCase() +
+            " · tick " +
+            asset.instrument.tick_size +
+            " " +
+            asset.instrument.quote_currency +
+            " · quantity step " +
+            asset.instrument.quantity_step +
+            " native · multiplier " +
+            asset.instrument.contract_multiplier +
+            " · settles in " +
+            asset.instrument.settlement_currency,
+        );
+        const traces = [
+          line(asset.series.bid, "Received best bid", p.price, 1),
+          line(asset.series.ask, "Received best ask", p.ask, 1, "dash"),
+          markers(asset, "fill", "BUY", p.buy, "triangle-up"),
+          markers(asset, "fill", "SELL", p.sell, "triangle-down"),
+          markers(asset, "unfilled", "", p.muted, "x"),
+          line(asset.series.position, "Actual position", p.price, 2),
+          line(
+            asset.series.known_position,
+            "Acknowledged position",
+            p.known,
+            2,
+            "dot",
+          ),
+          line(account.series.marked, "Marked PnL", p.price, 3),
+          line(account.series.cash, "Settlement cash", p.cash, 3, "dash"),
+          line(account.series.drawdown, "Drawdown", p.dd, 4),
+        ];
+        traces[8].visible = "legendonly";
+        traces.forEach((trace, index) => {
+          const previous = $("replay-chart").data?.[index]?.visible;
+          if (previous !== undefined) trace.visible = previous;
+        });
+        const current = $("replay-chart").layout;
+        const range =
+          !reset && current?.xaxis?.autorange === false
+            ? current.xaxis.range
+            : undefined;
+        const narrow = window.innerWidth < 700;
+        if (narrow) {
+          const names = [
+            "Received bid",
+            "Received ask",
+            "BUY fill",
+            "SELL fill",
+            "Unfilled order",
+            "Actual position",
+            "Known position",
+            "Marked PnL",
+            "Cash",
+            "Drawdown",
+          ];
+          traces.forEach((trace, i) => {
+            trace.name = names[i];
+          });
+        }
+        const layout = {
+          paper_bgcolor: p.paper,
+          plot_bgcolor: p.paper,
+          font: { family: "system-ui, sans-serif", color: p.ink, size: 12 },
+          margin: {
+            l: narrow ? 52 : 84,
+            r: narrow ? 14 : 32,
+            t: narrow ? 180 : 96,
+            b: 60,
+          },
+          autosize: true,
+          hovermode: "closest",
+          dragmode: "zoom",
+          showlegend: true,
+          legend: {
+            orientation: "h",
+            x: 0,
+            y: narrow ? 1.06 : 1.085,
+            ...(narrow
+              ? { entrywidth: 135, entrywidthmode: "pixels", yanchor: "bottom" }
+              : {}),
+            font: { size: 11 },
+          },
+          annotations: [],
+          shapes: [
+            {
+              type: "line",
+              xref: "paper",
+              x0: 0,
+              x1: 1,
+              yref: "y2",
+              y0: Number(asset.cap_units),
+              y1: Number(asset.cap_units),
+              line: { color: p.muted, dash: "dash", width: 1 },
+            },
+            {
+              type: "line",
+              xref: "paper",
+              x0: 0,
+              x1: 1,
+              yref: "y2",
+              y0: -Number(asset.cap_units),
+              y1: -Number(asset.cap_units),
+              line: { color: p.muted, dash: "dash", width: 1 },
+            },
+          ],
+        };
+        if (asset.cap_units === null) layout.shapes = [];
+        const domains = [
+            [0.79, 1],
+            [0.55, 0.71],
+            [0.24, 0.47],
+            [0, 0.16],
+          ],
+          titles = [
+            "Received quotes and executions · " +
+              asset.instrument.quote_currency,
+            "Inventory · stored units · cap " +
+              (asset.cap_units === null ? "not supplied" : asset.cap_units),
+            "Marked PnL and cash · " + account.currency,
+            "Drawdown · " + account.currency,
+          ];
+        for (let i = 1; i <= 4; i++) {
+          const suffix = i === 1 ? "" : i;
+          layout["xaxis" + suffix] = {
+            domain: [0, 1],
+            anchor: "y" + suffix,
+            gridcolor: p.grid,
+            zeroline: false,
+            showticklabels: i === 4,
+            ...(i > 1 ? { matches: "x" } : {}),
+            ...(range ? { range, autorange: false } : {}),
+            ...(i === 4
+              ? {
+                  title: {
+                    text: narrow
+                      ? "Seconds since UTC start"
+                      : "Seconds since " + report.start_utc,
+                    font: { size: 11 },
+                  },
+                }
+              : {}),
+          };
+          layout["yaxis" + suffix] = {
+            domain: domains[i - 1],
+            anchor: "x" + suffix,
+            gridcolor: p.grid,
+            zerolinecolor: p.grid,
+            autorange: true,
+            fixedrange: false,
+          };
+          layout.annotations.push({
+            xref: "paper",
+            yref: "paper",
+            x: 0,
+            y: domains[i - 1][1] + 0.025,
+            text: escapeText(titles[i - 1]),
+            showarrow: false,
+            xanchor: "left",
+            font: { color: p.ink, size: 13 },
+          });
+        }
+        await Plotly.react("replay-chart", traces, layout, {
+          responsive: true,
+          displaylogo: false,
+          scrollZoom: false,
+          toImageButtonOptions: {
+            format: "png",
+            filename: "financeai-replay",
+            scale: 2,
+          },
+        });
+        $("events").replaceChildren();
+        const visible = asset.events.slice(0, 75);
+        for (const e of visible) {
+          const row = document.createElement("tr");
+          for (const value of [
+            (e.kind === "fill" ? "FILL" : "UNFILLED") + " · " + e.side,
+            e.order_id,
+            e.qty_units,
+            e.requested_units,
+            e.price_exact,
+            e.submit_utc,
+            e.arrival_utc,
+            e.ack_utc,
+          ]) {
+            const cell = document.createElement("td");
+            cell.textContent = value;
+            row.appendChild(cell);
+          }
+          $("events").appendChild(row);
+        }
+        text("price-heading", "Price · " + asset.instrument.quote_currency);
+        text(
+          "ledger-caption",
+          asset.key +
+            " · first " +
+            visible.length +
+            " of " +
+            asset.events.length +
+            " events",
+        );
+        text(
+          "ledger-note",
+          "All " +
+            asset.fills +
+            " price-level fills and wholly unfilled orders for this instrument remain in the markers and downloadable data. The account panels include every instrument settling in " +
+            account.currency +
+            ".",
+        );
+        text(
+          "reduction-note",
+          "Display: " +
+            report.reduction.buckets +
+            " time buckets per series, preserving first/last/extrema and gap boundaries. Statistics use full records; " +
+            account.unmarked_points +
+            " unavailable valuation points. No smoothing or event sampling.",
+        );
+        $("replay-chart").dataset.instrument = asset.key;
+        $("replay-chart").dataset.currency = account.currency;
+        window.financeaiReportReady = true;
+      }
+      let renderQueue = Promise.resolve();
+      function update(reset = false) {
+        renderQueue = renderQueue
+          .then(() => draw(reset))
+          .catch((error) => {
+            text("render-error", "Could not render report: " + error.message);
+            console.error(error);
+          });
+        return renderQueue;
+      }
+      options(
+        "instrument",
+        report.assets.map((a) => a.key),
+      );
+      options(
+        "currency",
+        report.accounts.map((a) => a.currency),
+      );
+      $("theme").value = report.theme;
+      $("currency").value = report.assets[0].instrument.settlement_currency;
+      text("report-title", report.title);
+      text(
+        "evidence",
+        report.evidence_scope === "SYNTHETIC"
+          ? "SYNTHETIC · invented data"
+          : report.evidence_scope.replaceAll("_", " "),
+      );
+      text(
+        "account-status",
+        report.account_valid
+          ? "VALID · terminal positions flat"
+          : "INVALID · " + report.invalid_reason,
+      );
+      if (!report.account_valid) $("account-status").classList.add("invalid");
+      text(
+        "record-count",
+        report.counts.orders +
+          " orders · " +
+          report.counts.fills +
+          " price-level fills",
+      );
+      text(
+        "period",
+        report.start_utc +
+          " → " +
+          report.end_utc +
+          " · UTC; exact nanoseconds in hover details",
+      );
+      text(
+        "provenance",
+        "FinanceAI " +
+          report.financeai_version +
+          " · source SHA-256 " +
+          report.source_sha256,
+      );
+      $("instrument").addEventListener("change", () => {
+        $("currency").value = report.assets.find(
+          (a) => a.key === $("instrument").value,
+        ).instrument.settlement_currency;
+        update();
+      });
+      for (const id of ["currency", "theme"])
+        $(id).addEventListener("change", () => update());
+      $("reset-view").addEventListener("click", () => update(true));
+      $("download-data").addEventListener("click", () => {
+        const url = URL.createObjectURL(
+          new Blob([JSON.stringify(report, null, 2)], {
+            type: "application/json",
+          }),
+        );
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = "financeai-replay-data.json";
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      });
+      let resizeTimer;
+      window.addEventListener("resize", () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => update(), 150);
+      });
+      update();
+    </script>
+  </body>
+</html>

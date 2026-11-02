@@ -23,7 +23,7 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: pyproject.toml
-      - run: python -m pip install -e '.[dev,fast,report,api]'
+      - run: python -m pip install -e '.[dev,fast,report,interactive,api]'
       - run: python -m ruff check src tests examples scripts
       - run: python -m mypy src
       - run: python scripts/check_docs.py
@@ -42,11 +42,11 @@ jobs:
             disable-jit: '1'
           - os: ubuntu-latest
             mode: all-extras
-            extras: dev,fast,report,api
+            extras: dev,fast,report,interactive,api
             disable-jit: '0'
           - os: macos-latest
             mode: all-extras
-            extras: dev,fast,report,api
+            extras: dev,fast,report,interactive,api
             disable-jit: '0'
     env:
       FINANCEAI_DISABLE_JIT: ${{ matrix.disable-jit }}
@@ -67,6 +67,25 @@ jobs:
       - run: python -m pytest -q -m 'not slow and not data'
       - run: python examples/market_replay.py --out '${{ runner.temp }}/quickstart'
 
+  browser:
+    name: Offline report (Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      FINANCEAI_DISABLE_JIT: '1'
+      FINANCEAI_BROWSER_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: python -m pip install -e '.[dev,interactive,browser-test]'
+      - run: python -m playwright install --with-deps chromium
+      - run: python -m pytest -q tests/reporting/test_replay_browser.py
+      - run: python examples/replay_report.py --out '${{ runner.temp }}/replay.html'
+
   distribution:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -85,3 +104,9 @@ jobs:
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/wheel-env/bin/python" -I -m financeai --version
           "$RUNNER_TEMP/wheel-env/bin/python" -I "$GITHUB_WORKSPACE/examples/market_replay.py" --out wheel-example
+      - name: Verify the installed interactive report and bundled template
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/wheel-env/bin/python" -m pip install 'plotly>=6,<7'
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/wheel-env/bin/python" -I "$GITHUB_WORKSPACE/examples/replay_report.py" --out wheel-replay.html

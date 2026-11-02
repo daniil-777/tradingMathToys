@@ -65,6 +65,7 @@ Optional capabilities:
 
 ```bash
 python -m pip install -e '.[fast,report]'  # compiled kernels and charts
+python -m pip install -e '.[interactive]' # offline replay explorer
 python -m pip install -e '.[api]'         # local research job service
 ```
 
@@ -151,7 +152,26 @@ print(result.fills)
 
 `net_pnl` is available only for a valid, flat account with a common settlement currency.
 For multiple currencies, use `pnl_by_currency`; the library never invents an exchange rate to add
-them together. Aggregate charts and statistics require a common settlement currency.
+them together. Each account chart uses one settlement currency; the explorer lets you switch
+between those separate account views.
+
+## Explore a replay
+
+![Offline interactive explorer showing quotes, buy/sell fills, positions, marked PnL, and drawdown](docs/assets/reports/replay-dark.png)
+
+```bash
+python -m pip install -e '.[interactive]'
+python examples/replay_report.py --out runs/replay.html
+```
+
+Open the HTML locally: zoom across four synchronized panels, switch instruments and settlement
+currencies, inspect exact order/fill clocks, and download the plotted data. Light and dark themes
+use both shapes and color. Reports work offline and include a source/output SHA-256 manifest.
+The example uses invented markets; its losses show the effect of execution costs.
+
+For your own replay, call `write_replay_report(result, market, "runs/replay.html", scenario=scenario)`.
+See the [visualization guide and design research](docs/visualizations.md) for the API, accounting
+semantics, display limits, and static PNG/SVG alternatives.
 
 ## How replay works
 
@@ -190,7 +210,7 @@ Synthetic examples explain software behavior; they do not establish expected pro
 ## Development
 
 ```bash
-python -m pip install -e '.[dev,fast,report,api]'
+python -m pip install -e '.[dev,fast,report,interactive,api]'
 python -m pytest -q -m 'not slow and not data'
 python -m ruff check src tests examples scripts
 python -m mypy src
@@ -199,7 +219,8 @@ python -m build
 ```
 
 CI checks the NumPy-only path, compiled replay on Linux and macOS, documentation links, and an
-installed wheel outside the checkout. See [Contributing](CONTRIBUTING.md) and the
+installed wheel outside the checkout. A separate Chromium job checks offline reports and their
+controls. See [Contributing](CONTRIBUTING.md) and the
 [changelog](CHANGELOG.md). Our [design review](docs/library_design_review.md) compares the architecture
 with LEAN, NautilusTrader, Backtrader, and vectorbt and records the implementation roadmap.
 License: proprietary.

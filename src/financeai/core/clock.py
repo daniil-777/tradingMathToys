@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import calendar
 from datetime import UTC, datetime
-from typing import Final
+from typing import Final, Literal
 
 from financeai.core.errors import InvalidDataError
 from financeai.core.jit import njit
@@ -44,10 +44,13 @@ def parse_recorder_datetime_ns(text: bytes) -> int:
     return seconds * NS_PER_S + parsed.microsecond * NS_PER_US
 
 
-def format_ns(ns: int) -> str:
-    """ISO-8601 UTC rendering with microsecond precision (display only)."""
+def format_ns(ns: int, *, precision: Literal["us", "ns"] = "us") -> str:
+    """ISO-8601 UTC rendering; opt into all nine fractional digits with precision='ns'."""
+    if precision not in ("us", "ns"):
+        raise ValueError("timestamp precision must be 'us' or 'ns'")
     if ns == MISSING_NS:
         return "<missing>"
     seconds, rem = divmod(ns, NS_PER_S)
     stamp = datetime.fromtimestamp(seconds, tz=UTC)
-    return f"{stamp:%Y-%m-%dT%H:%M:%S}.{rem // NS_PER_US:06d}Z"
+    fraction = f"{rem:09d}" if precision == "ns" else f"{rem // NS_PER_US:06d}"
+    return f"{stamp:%Y-%m-%dT%H:%M:%S}.{fraction}Z"

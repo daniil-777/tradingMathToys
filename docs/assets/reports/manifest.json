@@ -1,0 +1,23 @@
+{
+  "schema": "financeai.replay_preview",
+  "schema_version": 1,
+  "html_sha256": "01a0296e9734c108ca391c63cf2a4f549ff3745563198fd12c33afc7e5fffcf1",
+  "source_sha256": "5f6d317941b78279598c4e5490ea7e6b89db564ce253207e2dc90480f95f6ba1",
+  "browser": "156.0.8078.4",
+  "viewport": {
+    "width": 1280,
+    "height": 1000
+  },
+  "previews": [
+    {
+      "file": "replay-dark.png",
+      "sha256": "c918719ab8ef8f572a91872d1d95362c37f4cc31fc396852414c7aae88bd8981",
+      "theme": "dark"
+    },
+    {
+      "file": "replay-light.png",
+      "sha256": "c8e3777e1925a2eb3e882226c20bf64a8b4d4a56ec2da2b9e39e45c8854dee39",
+      "theme": "light"
+    }
+  ]
+}

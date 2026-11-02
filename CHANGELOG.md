@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Offline interactive replay explorer with synchronized quote/fill, inventory, marked PnL, and drawdown panels.
+- Currency-isolated account views, light/dark themes, exact nanosecond hover details, and downloadable report data.
+- Source/output manifests, full-ledger statistics, extrema/gap-preserving display reduction, and explicit display budgets.
+- Visualization design research, a heterogeneous-market example, and real Chromium regression checks in CI.
+
 - Per-instrument position caps and independent order/acknowledgement latency overrides.
 - JSON risk configuration through the CLI; replay exports preserve actual limits.
 - Labels, research solvers, and reports honor the selected instrument controls.

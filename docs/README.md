@@ -6,6 +6,7 @@ Start with the [repository quickstart](../README.md), then follow the path that 
 | --- | --- |
 | [Instrument conventions](instruments.md) | Price grids, quantity units, multipliers, fees, and settlement |
 | [Usage](usage.md) | Data → signals → replay → exported results |
+| [Visualization](visualizations.md) | Offline interactive explorer, static figures, and design research |
 | [Animation](trading_animation.md) | Beginner explanation, transcript, and reproducible rendering |
 | [Architecture](architecture.md) | Package layers and execution semantics |
 | [CSV ingestion](tardis.md) | Normalized snapshot/trade inputs and validation |

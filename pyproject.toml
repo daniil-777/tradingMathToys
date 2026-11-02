@@ -27,6 +27,10 @@ dependencies = ["numpy>=2.0"]
 fast = ["numba>=0.61"]
 # Matplotlib figures for reports; never imported by the numerical core.
 report = ["matplotlib>=3.9"]
+# Offline HTML replay explorer; the numerical core does not import Plotly.
+interactive = ["plotly>=6,<7"]
+# Optional headless UI regression tooling (not needed to create or view reports).
+browser-test = ["playwright>=1.49,<2"]
 # Local research job API (financeai.service; full_library profile); importing financeai never imports it.
 # service/app.py also imports starlette (ASGI middleware types, the HTTPException handler) and anyio
 # (thread offload) directly, so they are declared rather than left to FastAPI's own requirements.

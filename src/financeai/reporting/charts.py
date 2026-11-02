@@ -261,10 +261,7 @@ def _order_records(orders: Orders) -> list[dict[str, Any]]:
 
 
 def _instrument_records(prep: PreparedMarket) -> list[dict[str, Any]]:
-    return [
-        {"venue": i.venue, "symbol": i.symbol, "tick_size": str(i.tick_size), "lot_size": i.lot_size}
-        for i in prep.data.instruments
-    ]
+    return [i.to_mapping() for i in prep.data.instruments]
 
 
 def _environment(mpl: ModuleType) -> dict[str, Any]:
