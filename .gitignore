@@ -1,0 +1,36 @@
+# Environments and caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/
+dist/
+build/
+*.egg-info/
+*.nbc
+*.nbi
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+
+# Market data and derived caches are private and large: never commit them.
+data/
+cache/
+*.npy
+*.npz
+*.txt.gz
+*.csv.gz
+
+# Run outputs are evidence stored outside Git and referenced by hash.
+runs/
+.DS_Store
+
+# Local agent-tool state (not part of this project)
+.claude-flow/
+.swarm/
+agentdb.rvf*
+ruvector.db

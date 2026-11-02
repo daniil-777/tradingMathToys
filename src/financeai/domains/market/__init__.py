@@ -1,0 +1,121 @@
+"""High-frequency order-book and trade market domain: ingestion, mmap caches, event streams,
+dual-clock execution, currency-aware ledgers, and fast/reference replay engines."""
+
+from __future__ import annotations
+
+from financeai.domains.market.cache import SourceInfo, load_tapes, read_manifest, save_tapes
+from financeai.domains.market.engine import (
+    REASON_ENTRY,
+    REASON_EXIT,
+    REASON_FLATTEN,
+    Orders,
+    PreparedMarket,
+    ReplayResult,
+    ThresholdParams,
+    run_replay,
+)
+from financeai.domains.market.instruments import (
+    DEMO_INVERSE_A,
+    DEMO_INVERSE_B,
+    DEMO_LINEAR,
+    DEMO_SPOT,
+    INSTRUMENTS,
+    ContractType,
+    InstrumentSpec,
+)
+from financeai.domains.market.ledger import Fills, Settlement, exact_score, fill_cash, settle
+from financeai.domains.market.recorder import (
+    parse_recorder_bytes,
+    parse_recorder_bytes_reference,
+    read_recorder_file,
+)
+from financeai.domains.market.reference import (
+    ControllerView,
+    FillReport,
+    Policy,
+    PolicyAction,
+    ThresholdPolicy,
+    run_reference,
+)
+from financeai.domains.market.scenario import (
+    DEMO_BASE_FEES,
+    DEMO_HIGH_FEES,
+    RiskLimits,
+    Scenario,
+    SessionPlan,
+    TimingMode,
+    demo_scenarios,
+)
+from financeai.domains.market.stream import (
+    BOOK_EVENT,
+    TRADE_EVENT,
+    EventStream,
+    MarketData,
+    book_validity,
+    exchange_envelope,
+)
+from financeai.domains.market.tape import (
+    BOOK_CLEAR,
+    BOOK_SNAPSHOT,
+    DEPTH,
+    BookTape,
+    MarketTapes,
+    ParseReport,
+    TradeTape,
+)
+
+__all__ = [
+    "BOOK_CLEAR",
+    "BOOK_EVENT",
+    "BOOK_SNAPSHOT",
+    "DEMO_BASE_FEES",
+    "DEMO_HIGH_FEES",
+    "DEMO_INVERSE_A",
+    "DEMO_INVERSE_B",
+    "DEMO_LINEAR",
+    "DEMO_SPOT",
+    "DEPTH",
+    "INSTRUMENTS",
+    "REASON_ENTRY",
+    "REASON_EXIT",
+    "REASON_FLATTEN",
+    "TRADE_EVENT",
+    "BookTape",
+    "ContractType",
+    "ControllerView",
+    "EventStream",
+    "FillReport",
+    "Fills",
+    "InstrumentSpec",
+    "MarketData",
+    "MarketTapes",
+    "Orders",
+    "ParseReport",
+    "Policy",
+    "PolicyAction",
+    "PreparedMarket",
+    "ReplayResult",
+    "RiskLimits",
+    "Scenario",
+    "SessionPlan",
+    "Settlement",
+    "SourceInfo",
+    "ThresholdParams",
+    "ThresholdPolicy",
+    "TimingMode",
+    "TradeTape",
+    "book_validity",
+    "demo_scenarios",
+    "exact_score",
+    "exchange_envelope",
+    "fill_cash",
+    "load_tapes",
+    "parse_recorder_bytes",
+    "parse_recorder_bytes_reference",
+    "read_manifest",
+    "read_recorder_file",
+    "run_reference",
+    "run_replay",
+    "save_tapes",
+    "settle",
+]

@@ -1,0 +1,7 @@
+"""financeai: causal, latency-aware market replay and strategy research."""
+
+from __future__ import annotations
+
+__version__ = "0.2.0.dev0"
+
+__all__ = ["__version__"]

@@ -1,0 +1,28 @@
+{
+  "schema": "financeai.strategy",
+  "schema_version": "1.0",
+  "name": "Synthetic lead-gap example",
+  "instruments": ["venue_a/ALPHA-USD", "venue_b/ALPHA-PERP"],
+  "signal": {
+    "kind": "lead_gap",
+    "leader": "venue_b/ALPHA-PERP",
+    "follower": "venue_a/ALPHA-USD",
+    "window_ms": 20,
+    "depth_units": 1000,
+    "gate_ticks": 2
+  },
+  "policy": {
+    "direction": {"venue_a/ALPHA-USD": 1, "venue_b/ALPHA-PERP": 0},
+    "size_units": {"venue_a/ALPHA-USD": 1000, "venue_b/ALPHA-PERP": 0},
+    "enter": 0.5,
+    "exit": -1000000000.0,
+    "allow_short": true,
+    "min_hold_ms": 0,
+    "max_hold_ms": 50,
+    "cooldown_ms": 0,
+    "stop_bps": 0.0,
+    "entry_slip_ticks": 1,
+    "exit_slip_ticks": 20
+  },
+  "session": {"warmup_s": 0, "entry_stop_s": 0.4, "flatten_s": 0.3, "exec_stop_s": 0.06}
+}
